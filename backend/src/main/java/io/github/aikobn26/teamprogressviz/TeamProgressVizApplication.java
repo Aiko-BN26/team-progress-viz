@@ -1,4 +1,4 @@
-package io.github.aiko_bn26.team_progress_viz;
+package io.github.aikobn26.teamprogressviz;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
