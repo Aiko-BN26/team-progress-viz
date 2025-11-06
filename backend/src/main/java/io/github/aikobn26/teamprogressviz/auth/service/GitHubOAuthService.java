@@ -21,7 +21,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.github.aikobn26.teamprogressviz.auth.exception.GitHubOAuthException;
 import io.github.aikobn26.teamprogressviz.auth.model.AuthenticatedUser;
-import io.github.aikobn26.teamprogressviz.shared.properties.GitHubOAuthProperties;
+import io.github.aikobn26.teamprogressviz.auth.properties.GitHubOAuthProperties;
 import jakarta.servlet.http.HttpSession;
 import lombok.AllArgsConstructor;
 
