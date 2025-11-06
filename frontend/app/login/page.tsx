@@ -5,7 +5,7 @@ export default function login() {
   useEffect(() => {
       const checkIsLogin = async () => {
       try{
-        const res = await fetch("/api/auth/github/login");
+        const res = await fetch("http:localhost:8080/api/auth/github/login");
         const data = await res.json();
 
         switch(res.status){
