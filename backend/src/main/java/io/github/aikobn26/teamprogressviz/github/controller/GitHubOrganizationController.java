@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import io.github.aikobn26.teamprogressviz.auth.service.GitHubOAuthService;
 import io.github.aikobn26.teamprogressviz.github.model.GitHubOrganization;
+import io.github.aikobn26.teamprogressviz.github.model.GitHubOrganizationMember;
 import io.github.aikobn26.teamprogressviz.github.model.GitHubRepository;
 import io.github.aikobn26.teamprogressviz.github.service.GitHubOrganizationService;
 import jakarta.servlet.http.HttpSession;
@@ -47,5 +48,17 @@ public class GitHubOrganizationController {
         }
         var repositories = organizationService.listRepositories(token.get(), organization);
         return ResponseEntity.ok(repositories);
+    }
+
+    @GetMapping("/organizations/{organization}/members")
+    public ResponseEntity<List<GitHubOrganizationMember>> listMembers(
+            @PathVariable("organization") @NotBlank String organization,
+            HttpSession session) {
+        var token = gitHubOAuthService.getAccessToken(session);
+        if (token.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        var members = organizationService.listMembers(token.get(), organization);
+        return ResponseEntity.ok(members);
     }
 }

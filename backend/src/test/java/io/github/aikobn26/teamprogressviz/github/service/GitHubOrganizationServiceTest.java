@@ -17,6 +17,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import io.github.aikobn26.teamprogressviz.github.exception.GitHubApiException;
 import io.github.aikobn26.teamprogressviz.github.model.GitHubOrganization;
+import io.github.aikobn26.teamprogressviz.github.model.GitHubOrganizationMember;
 import io.github.aikobn26.teamprogressviz.github.model.GitHubRepository;
 import io.github.aikobn26.teamprogressviz.github.properties.GitHubApiProperties;
 import reactor.core.publisher.Mono;
@@ -89,6 +90,33 @@ class GitHubOrganizationServiceTest {
     }
 
     @Test
+    void listMembers_returnsMappedMembers() {
+        ExchangeFunction stub = request -> {
+            if (request.url().toString().equals("https://api.github.com/orgs/octo-org/members?per_page=100")) {
+                var response = ClientResponse.create(HttpStatus.OK)
+                        .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .body("[{\"id\":77,\"login\":\"octocat\",\"avatar_url\":\"https://avatars.githubusercontent.com/u/77\",\"html_url\":\"https://github.com/octocat\",\"type\":\"User\",\"site_admin\":false}]")
+                        .build();
+                return Mono.just(response);
+            }
+            return Mono.error(new IllegalStateException("Unexpected request: " + request.url()));
+        };
+
+        var service = new GitHubOrganizationService(buildClient(stub), properties);
+
+        List<GitHubOrganizationMember> members = service.listMembers("token-abc", "octo-org");
+
+        assertThat(members)
+                .containsExactly(new GitHubOrganizationMember(
+                        77L,
+                        "octocat",
+                        "https://avatars.githubusercontent.com/u/77",
+                        "https://github.com/octocat",
+                        "User",
+                        false));
+    }
+
+    @Test
     void listOrganizations_throwsWhenTokenBlank() {
         var service = new GitHubOrganizationService(buildClient(request -> Mono.never()), properties);
 
@@ -111,6 +139,24 @@ class GitHubOrganizationServiceTest {
         var service = new GitHubOrganizationService(buildClient(request -> Mono.never()), properties);
 
         assertThatThrownBy(() -> service.listRepositories("token", ""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("organization must not be blank");
+    }
+
+    @Test
+    void listMembers_throwsWhenTokenBlank() {
+        var service = new GitHubOrganizationService(buildClient(request -> Mono.never()), properties);
+
+        assertThatThrownBy(() -> service.listMembers("", "org"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("access token");
+    }
+
+    @Test
+    void listMembers_throwsWhenOrganizationBlank() {
+        var service = new GitHubOrganizationService(buildClient(request -> Mono.never()), properties);
+
+        assertThatThrownBy(() -> service.listMembers("token", ""))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("organization must not be blank");
     }
@@ -147,6 +193,23 @@ class GitHubOrganizationServiceTest {
         assertThatThrownBy(() -> service.listRepositories("token", "octo-org"))
                 .isInstanceOf(GitHubApiException.class)
                 .satisfies(ex -> assertThat(((GitHubApiException) ex).statusCode()).isEqualTo(HttpStatus.BAD_GATEWAY));
+    }
+
+    @Test
+    void listMembers_wrapsWebClientErrors() {
+        ExchangeFunction stub = request -> {
+            var response = ClientResponse.create(HttpStatus.SERVICE_UNAVAILABLE)
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                    .body("{\"message\":\"Downstream error\"}")
+                    .build();
+            return Mono.just(response);
+        };
+
+        var service = new GitHubOrganizationService(buildClient(stub), properties);
+
+        assertThatThrownBy(() -> service.listMembers("token", "octo-org"))
+                .isInstanceOf(GitHubApiException.class)
+                .satisfies(ex -> assertThat(((GitHubApiException) ex).statusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
     }
 
     private WebClient buildClient(ExchangeFunction stub) {

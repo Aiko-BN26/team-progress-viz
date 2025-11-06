@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import io.github.aikobn26.teamprogressviz.auth.service.GitHubOAuthService;
 import io.github.aikobn26.teamprogressviz.github.model.GitHubOrganization;
+import io.github.aikobn26.teamprogressviz.github.model.GitHubOrganizationMember;
 import io.github.aikobn26.teamprogressviz.github.model.GitHubRepository;
 import io.github.aikobn26.teamprogressviz.github.service.GitHubOrganizationService;
 import io.github.aikobn26.teamprogressviz.shared.properties.FrontendProperties;
@@ -93,5 +94,28 @@ class GitHubOrganizationControllerTest {
                 .andExpect(jsonPath("$[0].isPrivate").value(true));
 
         verify(organizationService).listRepositories(eq("token"), eq("octo"));
+    }
+
+    @Test
+    void listMembers_returnsUnauthorizedWhenAccessTokenMissing() throws Exception {
+        when(gitHubOAuthService.getAccessToken(any())).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/github/organizations/octo/members"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void listMembers_returnsMembersWhenAuthorized() throws Exception {
+        when(gitHubOAuthService.getAccessToken(any())).thenReturn(Optional.of("token"));
+        var members = List.of(new GitHubOrganizationMember(3L, "octocat", "avatar", "url", "User", false));
+        when(organizationService.listMembers("token", "octo")).thenReturn(members);
+
+        mockMvc.perform(get("/api/github/organizations/octo/members"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(3L))
+                .andExpect(jsonPath("$[0].login").value("octocat"))
+                .andExpect(jsonPath("$[0].siteAdmin").value(false));
+
+        verify(organizationService).listMembers(eq("token"), eq("octo"));
     }
 }

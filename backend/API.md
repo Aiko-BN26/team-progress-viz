@@ -113,3 +113,28 @@
     "error": "Failed to fetch GitHub repositories: 404 Not Found"
   }
   ```
+
+---
+
+### GET `/api/github/organizations/{organization}/members`
+- 指定した Organization に所属しているメンバーを取得します。
+- **Success 200** response body:
+  ```json
+  [
+    {
+      "id": 789,
+      "login": "octocat",
+      "avatarUrl": "https://avatars.githubusercontent.com/u/1",
+      "htmlUrl": "https://github.com/octocat",
+      "type": "User",
+      "siteAdmin": false
+    }
+  ]
+  ```
+- **Unauthorized 401** response body: empty。
+- **Failure 500** response body (GitHub API エラーなど):
+  ```json
+  {
+    "error": "Failed to fetch GitHub members: 500 Internal Server Error"
+  }
+  ```
