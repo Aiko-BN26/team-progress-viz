@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import io.github.aikobn26.teamprogressviz.auth.service.GitHubOAuthException;
+import io.github.aikobn26.teamprogressviz.auth.exception.GitHubOAuthException;
 
 @RestControllerAdvice(assignableTypes = AuthController.class)
 public class AuthControllerExceptionHandler {

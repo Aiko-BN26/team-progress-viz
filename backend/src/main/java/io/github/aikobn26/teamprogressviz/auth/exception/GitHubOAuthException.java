@@ -1,4 +1,4 @@
-package io.github.aikobn26.teamprogressviz.auth.service;
+package io.github.aikobn26.teamprogressviz.auth.exception;
 
 public class GitHubOAuthException extends RuntimeException {
 
