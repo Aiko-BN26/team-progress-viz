@@ -63,3 +63,53 @@
   "error": "Unexpected error occurred"
 }
 ```
+
+---
+
+## GitHub Organization Endpoints
+
+### GET `/api/github/organizations`
+- セッションに保存された GitHub アクセストークンを使用して、参加している全ての Organization を返します。
+- **Success 200** response body:
+  ```json
+  [
+    {
+      "id": 123,
+      "login": "octo-org",
+      "name": "Octo Org",
+      "description": "our organization",
+      "avatarUrl": "https://avatars.githubusercontent.com/u/123",
+      "htmlUrl": "https://github.com/octo-org"
+    }
+  ]
+  ```
+- **Unauthorized 401** response body: empty.
+
+---
+
+### GET `/api/github/organizations/{organization}/repositories`
+- 指定した Organization の全リポジトリを取得します。
+- **Success 200** response body:
+  ```json
+  [
+    {
+      "id": 456,
+      "name": "octo-repo",
+      "description": "Repository description",
+      "htmlUrl": "https://github.com/octo-org/octo-repo",
+      "language": "TypeScript",
+      "stargazersCount": 42,
+      "forksCount": 7,
+      "defaultBranch": "main",
+      "isPrivate": true,
+      "archived": false
+    }
+  ]
+  ```
+- **Unauthorized 401** response body: empty。
+- **Failure 500** response body (GitHub API エラーなど):
+  ```json
+  {
+    "error": "Failed to fetch GitHub repositories: 404 Not Found"
+  }
+  ```
