@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -24,23 +25,25 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(withDefaults())
-            .authorizeHttpRequests(
-                auth -> auth.requestMatchers("/api/auth/**").permitAll()
-                .anyRequest().authenticated()
-            )
-            .formLogin(AbstractHttpConfigurer::disable)
-            .httpBasic(AbstractHttpConfigurer::disable)
-            .logout(logout -> logout
-                .logoutUrl("/api/auth/logout")
-                .invalidateHttpSession(true)
-                .deleteCookies("JSESSIONID", "XSRF-TOKEN")
-                .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
-            );
-        return http.build();
-    }
+    http
+        .csrf(AbstractHttpConfigurer::disable)
+        .cors(withDefaults())   
+        .sessionManagement(session -> 
+            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS) 
+        )
+        
+        .authorizeHttpRequests(
+            auth -> auth.requestMatchers("/api/auth/**").permitAll()
+            .anyRequest().authenticated()
+        )
+        .formLogin(AbstractHttpConfigurer::disable)
+        .httpBasic(AbstractHttpConfigurer::disable)
+        .logout(logout -> logout
+        .logoutUrl("/api/auth/logout")   
+        .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
+    );
+    return http.build();
+}
 
     @Bean
     CorsConfigurationSource corsConfigurationSource(FrontendProperties frontendProperties) {
