@@ -27,8 +27,6 @@
   - `/enroll-organizations` : 組織登録ページ
   - `/organizations` : 組織一覧ページ
     - `/organizations/[id]` : 組織詳細ページ
-      - `/organizations/[id]/users` : 組織のユーザ一覧ページ
-      - `/organizations/[id]/status`: ステータス入力ページ
 - `/login` : ログインページ
 
 ## データフロー
