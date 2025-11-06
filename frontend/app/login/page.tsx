@@ -1,4 +1,4 @@
-import router from "next/router";
+import { redirect } from "next/navigation";
 import { useEffect } from "react";
 
 export default function login() {
@@ -11,7 +11,7 @@ export default function login() {
         switch(res.status){
           case 200:
             const authorizationUrl = data.authorizationUrl;
-            router.push(authorizationUrl);
+            redirect(authorizationUrl);
             break;
 
           case 500:

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import router from "next/router";
+import { redirect } from "next/navigation";
 
 export default function Home() {
   const [isLogin, setIsLogin] = useState<boolean | null>(null);
@@ -18,13 +19,13 @@ export default function Home() {
       }
 
     } catch(err){
-      console.error("fetch error:",err);
+      console.error("fetch error:", err);
     } };
     checkIsLogin();
   }, []);
 
   if (isLogin == false){
-    router.push("/login");
+    redirect("/login");
   } else {
 
     return(
