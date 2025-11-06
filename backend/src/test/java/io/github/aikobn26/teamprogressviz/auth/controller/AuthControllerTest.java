@@ -25,8 +25,8 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import io.github.aikobn26.teamprogressviz.auth.exception.GitHubOAuthException;
 import io.github.aikobn26.teamprogressviz.auth.model.AuthenticatedUser;
-import io.github.aikobn26.teamprogressviz.auth.properties.FrontendProperties;
 import io.github.aikobn26.teamprogressviz.auth.service.GitHubOAuthService;
+import io.github.aikobn26.teamprogressviz.shared.properties.FrontendProperties;
 
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)

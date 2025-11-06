@@ -16,8 +16,8 @@ import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import io.github.aikobn26.teamprogressviz.auth.model.AuthenticatedUser;
+import io.github.aikobn26.teamprogressviz.auth.properties.GitHubOAuthProperties;
 import io.github.aikobn26.teamprogressviz.auth.service.GitHubOAuthService;
-import io.github.aikobn26.teamprogressviz.shared.properties.GitHubOAuthProperties;
 import reactor.core.publisher.Mono;
 
 class GitHubOAuthServiceTest {
