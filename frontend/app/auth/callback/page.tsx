@@ -3,10 +3,9 @@ import { useEffect } from "react";
 
 export default function callback(){
   const router = useRouter();
+  const {status, message} = router.query;
 
   useEffect(() => {
-    const {status, message} = router.query;
-
     switch (status) {
       case "success":
         console.log("ログイン成功");
@@ -21,5 +20,5 @@ export default function callback(){
       default:
       break;
   } 
-  },[router.query]);
+  },[status,message]);
 }
