@@ -10,3 +10,7 @@
             - `/organizations/[id]/users` : ユーザー管理
             - `/organizations/[id]/status` : ステータス入力
 - `/login` : ログイン
+
+### タスク完了時の必須チェック
+1. npm run lint - ESLint実行
+2. npx tsc --noEmit - TypeScript型チェック

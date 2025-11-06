@@ -37,6 +37,7 @@
 - フレームワーク: Next.js
 - 言語: TypeScript
 - スタイリング: Tailwind CSS
+- UIコンポーネント: Shadcn/UI
 - バックエンド: Java21 (Spring Boot)
 - データベース: Supabase (PostgreSQL)
 - ホスト: Next.js/Vercel, Java/Render?
@@ -44,4 +45,5 @@
 
 ## エージェント行動ガイドライン
 - 英語でthinkして、日本語でoutputしてください。
-- 各リポジトリのREADME.mdやAGENTS.mdを参照し、プロジェクト構成や開発パターンを理解してください。
+- 各ディレクトリのREADME.mdやAGENTS.mdを参照し、プロジェクト構成や開発パターンを理解してください。
+- 余計な機能は追加せず、シンプルな実装を心がけてください。
