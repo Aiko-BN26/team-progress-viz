@@ -1,12 +1,12 @@
 package io.github.aikobn26.teamprogressviz.auth.properties;
 
 import java.net.URI;
-import java.util.Objects;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 @ConfigurationProperties(prefix = "github.oauth")
 @Validated
@@ -15,17 +15,8 @@ public record GitHubOAuthProperties
     
         @NotBlank String clientId,
         @NotBlank String clientSecret,
-        URI authorizeUrl,
-        URI tokenUrl,
-        URI userUrl,
-        URI callbackUrl
-) 
-{
-
-    public GitHubOAuthProperties {
-        Objects.requireNonNull(authorizeUrl, "github.oauth.authorize-url must be provided");
-        Objects.requireNonNull(tokenUrl, "github.oauth.token-url must be provided");
-        Objects.requireNonNull(userUrl, "github.oauth.user-url must be provided");
-        Objects.requireNonNull(callbackUrl, "github.oauth.callback-url must be provided");
-    }
-}
+        @NotNull(message="github.authorize-url must be provided") URI authorizeUrl,
+        @NotNull(message="github.token-url must be provided") URI tokenUrl,
+        @NotNull(message="github.user-url must be provided") URI userUrl,
+        @NotNull(message="github.callback-url must be provided") URI callbackUrl
+) {}

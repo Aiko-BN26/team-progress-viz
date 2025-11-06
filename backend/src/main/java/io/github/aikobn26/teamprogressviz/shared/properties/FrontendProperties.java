@@ -2,20 +2,19 @@ package io.github.aikobn26.teamprogressviz.shared.properties;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.Objects;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.web.util.UriComponentsBuilder;
-
+import jakarta.validation.constraints.NotNull;
 
 @ConfigurationProperties(prefix = "app.frontend")
-public record FrontendProperties(URI baseUri, String successPath, String errorPath) {
+public record FrontendProperties(
+    @NotNull(message="app.frontend.base-uri must be provided") URI baseUri, 
+    @NotNull(message="app.frontend.success-path must be provided") String successPath, 
+    @NotNull(message="app.frontend.error-path must be provided") String errorPath
+) {
 
     public FrontendProperties {
-        Objects.requireNonNull(baseUri, "app.frontend.base-uri must be provided");
-        Objects.requireNonNull(successPath, "app.frontend.success-path must be provided");
-        Objects.requireNonNull(errorPath, "app.frontend.error-path must be provided");
-
         if (!baseUri.isAbsolute() || baseUri.getHost() == null) {
             throw new IllegalArgumentException("app.frontend.base-uri must be an absolute URL");
         }
