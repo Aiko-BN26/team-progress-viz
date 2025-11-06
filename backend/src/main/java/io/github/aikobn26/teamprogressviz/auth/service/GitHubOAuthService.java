@@ -30,6 +30,7 @@ import lombok.AllArgsConstructor;
 public class GitHubOAuthService {
 
     public static final String SESSION_ATTRIBUTE_USER = "AUTHENTICATED_USER";
+    public static final String SESSION_ATTRIBUTE_ACCESS_TOKEN = "GITHUB_ACCESS_TOKEN";
     private static final String SESSION_ATTRIBUTE_STATE = "GITHUB_OAUTH_STATE";
     private static final int SESSION_TIMEOUT_SECONDS = 3600;
 
@@ -44,10 +45,12 @@ public class GitHubOAuthService {
         var state = generateStateToken();
         session.setAttribute(SESSION_ATTRIBUTE_STATE, state);
 
-        var uri = UriComponentsBuilder.fromUri(properties.authorizeUrl())
-                .queryParam("client_id", clientId)
-                .queryParam("redirect_uri", properties.callbackUrl())
-                .queryParam("scope", String.join(" ", List.of("read:user", "user:email")))
+    var scopes = List.of("read:user", "user:email", "read:org", "repo");
+
+    var uri = UriComponentsBuilder.fromUri(properties.authorizeUrl())
+        .queryParam("client_id", clientId)
+        .queryParam("redirect_uri", properties.callbackUrl())
+        .queryParam("scope", String.join(" ", scopes))
                 .queryParam("state", state)
                 .build()
                 .encode()
@@ -68,6 +71,7 @@ public class GitHubOAuthService {
         var profile = fetchUserProfile(accessToken);
         var user = new AuthenticatedUser(profile.id(), profile.login(), profile.name(), profile.avatarUrl());
         session.setAttribute(SESSION_ATTRIBUTE_USER, user);
+        session.setAttribute(SESSION_ATTRIBUTE_ACCESS_TOKEN, accessToken);
         session.setMaxInactiveInterval(SESSION_TIMEOUT_SECONDS);
         return user;
     }
@@ -76,6 +80,14 @@ public class GitHubOAuthService {
         var attribute = session.getAttribute(SESSION_ATTRIBUTE_USER);
         if (attribute instanceof AuthenticatedUser user) {
             return Optional.of(user);
+        }
+        return Optional.empty();
+    }
+
+    public Optional<String> getAccessToken(HttpSession session) {
+        var attribute = session.getAttribute(SESSION_ATTRIBUTE_ACCESS_TOKEN);
+        if (attribute instanceof String token && !token.isBlank()) {
+            return Optional.of(token);
         }
         return Optional.empty();
     }
