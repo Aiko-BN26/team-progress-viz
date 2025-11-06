@@ -5,7 +5,7 @@ import { CalendarRange } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ActivityPoint, OrganizationActivity } from "../types";
+import type { ActivityPoint, OrganizationActivity } from "../../app/organizations/[id]/types";
 
 type Props = {
   timezone: string;

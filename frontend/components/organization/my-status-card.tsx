@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import type { PersonalStatus } from "../types";
+import type { PersonalStatus } from "../../app/organizations/[id]/types";
 
 const STATUS_OPTIONS = [
   { value: "done", label: "完了" },

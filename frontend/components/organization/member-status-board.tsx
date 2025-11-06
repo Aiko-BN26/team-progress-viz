@@ -8,7 +8,7 @@ import { Filter, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { MemberStatus } from "../types";
+import type { MemberStatus } from "../../app/organizations/[id]/types";
 
 type Props = {
   members: MemberStatus[];

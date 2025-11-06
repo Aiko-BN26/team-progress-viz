@@ -19,10 +19,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import { ActivityChart } from "./_components/activity-chart";
-import { CopyShareButton } from "./_components/copy-share-button";
-import { MemberStatusBoard } from "./_components/member-status-board";
-import { MyStatusCard } from "./_components/my-status-card";
+import { ActivityChart } from "@/components/organization/activity-chart";
+import { CopyShareButton } from "@/components/organization/copy-share-button";
+import { MemberStatusBoard } from "@/components/organization/member-status-board";
+import { MyStatusCard } from "@/components/organization/my-status-card";
 import { fetchOrganizationViewData } from "./mock-data";
 import type { CommitActivity, OrganizationViewData } from "./types";
 
