@@ -33,6 +33,14 @@
 - コメント投稿機能
     - 開発について何か困っていることなどがあれば、共有できるようにする
 
+## 技術スタック
+- フレームワーク: Next.js
+- 言語: TypeScript
+- スタイリング: Tailwind CSS
+- バックエンド: Java21 (Spring Boot)
+- データベース: Supabase (PostgreSQL)
+- ホスト: Next.js/Vercel, Java/Render?
+- 定期実行: GitHub Actions
 
 ## エージェント行動ガイドライン
 - 英語でthinkして、日本語でoutputしてください。
