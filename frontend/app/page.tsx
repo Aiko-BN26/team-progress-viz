@@ -8,7 +8,7 @@ export default function Home() {
   useEffect(() => {
     const checkIsLogin = async () => {
     try{
-      const res = await fetch("http:localhost:8080/api/auth/session");
+      const res = await fetch("http://localhost:8080/api/auth/session");
       const data = await res.json();
 
       // responseがemptyだった場合は未ログインと判定
