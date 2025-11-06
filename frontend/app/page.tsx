@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import router from "next/router";
 import { redirect } from "next/navigation";
+
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
   const [isLogin, setIsLogin] = useState<boolean | null>(null);
@@ -30,8 +31,13 @@ export default function Home() {
 
     return(
       // organization一覧
-      <div>
-        <p>organization一覧</p>
+      <div className="space-y-4 p-6">
+        <p className="text-lg font-semibold">organization一覧</p>
+        <div className="flex flex-wrap gap-3">
+          <Button>新規作成</Button>
+          <Button variant="secondary">インポート</Button>
+          <Button variant="outline">再読み込み</Button>
+        </div>
       </div>
     );
   }
