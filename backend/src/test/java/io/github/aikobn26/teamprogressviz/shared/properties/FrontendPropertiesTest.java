@@ -7,6 +7,8 @@ import java.net.URI;
 
 import org.junit.jupiter.api.Test;
 
+import io.github.aikobn26.teamprogressviz.auth.properties.FrontendProperties;
+
 class FrontendPropertiesTest {
 
     private final FrontendProperties properties = new FrontendProperties(
