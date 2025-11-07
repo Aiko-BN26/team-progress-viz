@@ -9,7 +9,7 @@ export default function LoginPage() {
   useEffect(() => {
     const checkIsLogin = async () => {
       try {
-        const res = await fetch("http://localhost:8080/api/auth/github/login", {
+        const res = await fetch("https://team-progress-viz.onrender.com/api/auth/github/login", {
           credentials: "include",
         });
         const data = await res.json();

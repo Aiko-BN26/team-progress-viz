@@ -11,7 +11,7 @@ export default function Home() {
   useEffect(() => {
     const checkIsLogin = async () => {
     try{
-      const res = await fetch("http://localhost:8080/api/auth/session", {credentials: "include"});
+      const res = await fetch("https://team-progress-viz.onrender.com/api/auth/session", {credentials: "include"});
       const bodyText = await res.text();
       const data = bodyText ? JSON.parse(bodyText) : null;
 
