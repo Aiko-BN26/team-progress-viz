@@ -17,23 +17,24 @@ type Props = {
 
 const FILTERS = [
   { id: "all", label: "全員" },
-  { id: "pending", label: "未入力" },
-  { id: "late", label: "遅延" },
-  { id: "done", label: "完了" },
+  { id: "完了", label: "完了" },
+  { id: "集中", label: "集中" },
+  { id: "休み", label: "休み" },
+  { id: "ちょっと", label: "ちょっと" },
 ];
 
 const STATUS_LABELS: Record<MemberStatus["status"], string> = {
-  done: "報告済み",
-  focus: "集中",
-  pending: "未入力",
-  late: "遅延",
+  完了: "完了",
+  集中: "集中",
+  休み: "休み",
+  ちょっと: "ちょっと",
 };
 
 const STATUS_STYLES: Record<MemberStatus["status"], string> = {
-  done: "bg-emerald-100 text-emerald-700",
-  focus: "bg-sky-100 text-sky-700",
-  pending: "bg-amber-100 text-amber-700",
-  late: "bg-rose-100 text-rose-700",
+  完了: "bg-emerald-100 text-emerald-700",
+  集中: "bg-sky-100 text-sky-700",
+  休み: "bg-amber-100 text-amber-700",
+  ちょっと: "bg-violet-100 text-violet-700",
 };
 
 export function MemberStatusBoard({ members, timezone }: Props) {

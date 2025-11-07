@@ -17,10 +17,10 @@ import {
 import type { PersonalStatus } from "../../app/organizations/[id]/types";
 
 const STATUS_OPTIONS = [
-  { value: "done", label: "完了" },
-  { value: "focus", label: "集中" },
-  { value: "late", label: "遅延" },
-  { value: "pending", label: "未入力" },
+  { value: "完了", label: "完了" },
+  { value: "集中", label: "集中" },
+  { value: "休み", label: "休み" },
+  { value: "ちょっと", label: "ちょっと" },
 ];
 
 type Props = {
@@ -32,7 +32,7 @@ export function MyStatusCard({ timezone, personalStatus }: Props) {
   const shouldAutoOpen =
     !personalStatus.submitted && personalStatus.pendingReason === "first_access_today";
   const [open, setOpen] = useState(shouldAutoOpen);
-  const [formStatus, setFormStatus] = useState(personalStatus.status ?? "focus");
+  const [formStatus, setFormStatus] = useState(personalStatus.status ?? "集中");
   const [formMessage, setFormMessage] = useState(personalStatus.statusMessage ?? "");
   const [formCapacity, setFormCapacity] = useState(
     personalStatus.capacityHours ?? 3,
@@ -50,7 +50,7 @@ export function MyStatusCard({ timezone, personalStatus }: Props) {
 
   const showIncomplete = !personalStatus.submitted;
   const displayStatus = personalStatus.submitted
-    ? personalStatus.status ?? "pending"
+    ? personalStatus.status ?? "集中"
     : formStatus;
   const displayMessage = personalStatus.submitted
     ? personalStatus.statusMessage ?? "コメントなし"

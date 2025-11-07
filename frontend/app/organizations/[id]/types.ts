@@ -26,7 +26,7 @@ export type MemberStatus = {
   memberId: string;
   displayName: string;
   avatarUrl: string;
-  status: "done" | "pending" | "late" | "focus";
+  status: "完了" | "集中" | "休み" | "ちょっと";
   statusMessage: string | null;
   updatedAt: string | null;
   commitCount: number;
