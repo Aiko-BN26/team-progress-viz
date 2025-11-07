@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# フロントエンド
 
-## Getting Started
+## 基本機能
 
-First, run the development server:
+- ログイン機能
+    - GitHubアカウントによるOAuth
+- organization選択
+    - 自身が所属するorganizationの登録ができる
+- ステータス入力
+    - 当日初回ログインの場合、その日のコミット可能な時間等の入力が求められる
+        - 進捗可視化ページに反映される
+- 進捗可視化ページのリンク生成
+    - organizationごとに付与される
+- 進捗度合いの可視化
+    - 日・週・月単位(?)で各メンバーがどの程度のコミットができているのかを可視化
+- ステータスの可視化
+    - 各メンバーが入力した当日のステータスをページ内に表示
+- 開発内容の可視化
+    - コミットをしたソースファイルがわかるように
+        - 具体的な変更点などは、GitHubへリンクをして確認できるようにする
+- コメント投稿機能
+    - 開発について何か困っていることなどがあれば、共有できるようにする
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ページ構成
+- `/` : ホームページ
+  - `/enroll-organizations` : 組織登録ページ
+  - `/organizations` : 組織一覧ページ
+    - `/organizations/[id]` : 組織詳細ページ
+      - `/organizations/[id]/users` : 組織のユーザ一覧ページ
+      - `/organizations/[id]/status`: ステータス入力ページ
+- `/login` : ログインページ
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## データフロー
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- トップページ
+    - ログインチェックをして
+        - 未ログイン→GitHubの認証画面に遷移
+        - ログインセッションがある→organizationの選択ページに遷移
+        - 今日最初のOrganizationアクセス→ステータス入力に遷移
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
