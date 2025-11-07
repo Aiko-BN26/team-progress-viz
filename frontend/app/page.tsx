@@ -21,6 +21,9 @@ import {
   parseCommentCreateResult,
   parseCommentList,
   parseCommitFeedResponse,
+  parseCommitDetail,
+  parseCommitFiles,
+  parseCommitList,
   parseDashboardResponse,
   parsePullRequestDetail,
   parsePullRequestFeed,
@@ -47,6 +50,9 @@ import type {
   CommentListItem,
   CommitFeed,
   CommitFeedItem,
+  CommitDetail,
+  CommitFileItem,
+  CommitListItem,
   DashboardSnapshot,
   PullRequestDetail,
   PullRequestFeed,
@@ -235,6 +241,43 @@ type CommitFeedResultState = {
   status: ActionStatus;
   organizationId?: number;
   data?: CommitFeed;
+  payload?: unknown;
+  error?: string;
+};
+
+type CommitListQuery = {
+  repositoryId: string;
+  limit: string;
+  page: string;
+};
+
+type CommitListResultState = {
+  status: ActionStatus;
+  repositoryId?: number;
+  items?: CommitListItem[];
+  payload?: unknown;
+  error?: string;
+};
+
+type CommitDetailQuery = {
+  repositoryId: string;
+  sha: string;
+};
+
+type CommitDetailResultState = {
+  status: ActionStatus;
+  repositoryId?: number;
+  sha?: string;
+  data?: CommitDetail;
+  payload?: unknown;
+  error?: string;
+};
+
+type CommitFilesResultState = {
+  status: ActionStatus;
+  repositoryId?: number;
+  sha?: string;
+  items?: CommitFileItem[];
   payload?: unknown;
   error?: string;
 };
@@ -430,6 +473,24 @@ export default function Home() {
     cursor: "",
   });
   const [commitFeedResult, setCommitFeedResult] = useState<CommitFeedResultState>({
+    status: "idle",
+  });
+  const [commitListQuery, setCommitListQuery] = useState<CommitListQuery>({
+    repositoryId: "",
+    limit: "",
+    page: "",
+  });
+  const [commitListResult, setCommitListResult] = useState<CommitListResultState>({
+    status: "idle",
+  });
+  const [commitDetailQuery, setCommitDetailQuery] = useState<CommitDetailQuery>({
+    repositoryId: "",
+    sha: "",
+  });
+  const [commitDetailResult, setCommitDetailResult] = useState<CommitDetailResultState>({
+    status: "idle",
+  });
+  const [commitFilesResult, setCommitFilesResult] = useState<CommitFilesResultState>({
     status: "idle",
   });
   const [pullFeedQuery, setPullFeedQuery] = useState<PullFeedQuery>({
@@ -2157,6 +2218,342 @@ export default function Home() {
       });
     }
   }, [commitFeedQuery, isAuthenticated]);
+
+  const loadCommitList = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const repoValue = commitListQuery.repositoryId.trim();
+    const repositoryId = Number.parseInt(repoValue, 10);
+    if (Number.isNaN(repositoryId)) {
+      setCommitListResult({
+        status: "error",
+        error: "Repository ID must be a number",
+      });
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setCommitListResult({
+        status: "error",
+        repositoryId,
+        error: "Sign in to list commits",
+      });
+      return;
+    }
+
+    const params = new URLSearchParams();
+    const limitValue = commitListQuery.limit.trim();
+    if (limitValue.length > 0) {
+      const limitNumber = Number.parseInt(limitValue, 10);
+      if (Number.isNaN(limitNumber)) {
+        setCommitListResult({
+          status: "error",
+          repositoryId,
+          error: "Limit must be a number",
+        });
+        return;
+      }
+      params.set("limit", limitNumber.toString());
+    }
+    const pageValue = commitListQuery.page.trim();
+    if (pageValue.length > 0) {
+      const pageNumber = Number.parseInt(pageValue, 10);
+      if (Number.isNaN(pageNumber)) {
+        setCommitListResult({
+          status: "error",
+          repositoryId,
+          error: "Page must be a number",
+        });
+        return;
+      }
+      params.set("page", pageNumber.toString());
+    }
+
+    setCommitListResult({ status: "loading", repositoryId });
+    try {
+      const query = params.toString();
+      const url = query.length > 0
+        ? `${API_BASE_URL}/api/repositories/${repositoryId}/commits?${query}`
+        : `${API_BASE_URL}/api/repositories/${repositoryId}/commits`;
+      const response = await fetch(url, { credentials: "include" });
+
+      const payload = (await readJson(response)) ?? undefined;
+
+      if (response.status === 401) {
+        setCommitListResult({
+          status: "error",
+          repositoryId,
+          error: "Unauthorized (login required)",
+          payload,
+        });
+        return;
+      }
+
+      if (response.status === 404) {
+        setCommitListResult({
+          status: "error",
+          repositoryId,
+          error: "Repository not found",
+          payload,
+        });
+        return;
+      }
+
+      if (!response.ok) {
+        const message =
+          payload && typeof payload === "object" && "error" in payload &&
+          typeof (payload as Record<string, unknown>).error === "string"
+            ? ((payload as Record<string, unknown>).error as string)
+            : `Request failed (${response.status})`;
+
+        setCommitListResult({
+          status: "error",
+          repositoryId,
+          error: message,
+          payload,
+        });
+        return;
+      }
+
+      const items = parseCommitList(payload);
+      if (!items) {
+        setCommitListResult({
+          status: "error",
+          repositoryId,
+          error: "Unexpected response payload",
+          payload,
+        });
+        return;
+      }
+
+      setCommitListResult({
+        status: "success",
+        repositoryId,
+        items,
+        payload,
+      });
+    } catch (error) {
+      setCommitListResult({
+        status: "error",
+        repositoryId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }, [commitListQuery, isAuthenticated]);
+
+  const loadCommitDetail = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const repoValue = commitDetailQuery.repositoryId.trim();
+    const repositoryId = Number.parseInt(repoValue, 10);
+    if (Number.isNaN(repositoryId)) {
+      setCommitDetailResult({
+        status: "error",
+        error: "Repository ID must be a number",
+      });
+      return;
+    }
+
+    const shaValue = commitDetailQuery.sha.trim();
+    if (shaValue.length === 0) {
+      setCommitDetailResult({
+        status: "error",
+        repositoryId,
+        error: "Commit SHA is required",
+      });
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setCommitDetailResult({
+        status: "error",
+        repositoryId,
+        sha: shaValue,
+        error: "Sign in to fetch commit detail",
+      });
+      return;
+    }
+
+    setCommitDetailResult({ status: "loading", repositoryId, sha: shaValue });
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/repositories/${repositoryId}/commits/${encodeURIComponent(shaValue)}`, {
+        credentials: "include",
+      });
+
+      const payload = (await readJson(response)) ?? undefined;
+
+      if (response.status === 401) {
+        setCommitDetailResult({
+          status: "error",
+          repositoryId,
+          sha: shaValue,
+          error: "Unauthorized (login required)",
+          payload,
+        });
+        return;
+      }
+
+      if (response.status === 404) {
+        setCommitDetailResult({
+          status: "error",
+          repositoryId,
+          sha: shaValue,
+          error: "Commit not found",
+          payload,
+        });
+        return;
+      }
+
+      if (!response.ok) {
+        const message =
+          payload && typeof payload === "object" && "error" in payload &&
+          typeof (payload as Record<string, unknown>).error === "string"
+            ? ((payload as Record<string, unknown>).error as string)
+            : `Request failed (${response.status})`;
+
+        setCommitDetailResult({
+          status: "error",
+          repositoryId,
+          sha: shaValue,
+          error: message,
+          payload,
+        });
+        return;
+      }
+
+      const data = parseCommitDetail(payload);
+      if (!data) {
+        setCommitDetailResult({
+          status: "error",
+          repositoryId,
+          sha: shaValue,
+          error: "Unexpected response payload",
+          payload,
+        });
+        return;
+      }
+
+      setCommitDetailResult({
+        status: "success",
+        repositoryId,
+        sha: shaValue,
+        data,
+        payload,
+      });
+    } catch (error) {
+      setCommitDetailResult({
+        status: "error",
+        repositoryId,
+        sha: shaValue,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }, [commitDetailQuery, isAuthenticated]);
+
+  const loadCommitFiles = useCallback(async () => {
+    const repoValue = commitDetailQuery.repositoryId.trim();
+    const repositoryId = Number.parseInt(repoValue, 10);
+    if (Number.isNaN(repositoryId)) {
+      setCommitFilesResult({
+        status: "error",
+        error: "Repository ID must be a number",
+      });
+      return;
+    }
+
+    const shaValue = commitDetailQuery.sha.trim();
+    if (shaValue.length === 0) {
+      setCommitFilesResult({
+        status: "error",
+        repositoryId,
+        error: "Commit SHA is required",
+      });
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setCommitFilesResult({
+        status: "error",
+        repositoryId,
+        sha: shaValue,
+        error: "Sign in to fetch commit files",
+      });
+      return;
+    }
+
+    setCommitFilesResult({ status: "loading", repositoryId, sha: shaValue });
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/repositories/${repositoryId}/commits/${encodeURIComponent(shaValue)}/files`, {
+        credentials: "include",
+      });
+
+      const payload = (await readJson(response)) ?? undefined;
+
+      if (response.status === 401) {
+        setCommitFilesResult({
+          status: "error",
+          repositoryId,
+          sha: shaValue,
+          error: "Unauthorized (login required)",
+          payload,
+        });
+        return;
+      }
+
+      if (response.status === 404) {
+        setCommitFilesResult({
+          status: "error",
+          repositoryId,
+          sha: shaValue,
+          error: "Commit not found",
+          payload,
+        });
+        return;
+      }
+
+      if (!response.ok) {
+        const message =
+          payload && typeof payload === "object" && "error" in payload &&
+          typeof (payload as Record<string, unknown>).error === "string"
+            ? ((payload as Record<string, unknown>).error as string)
+            : `Request failed (${response.status})`;
+
+        setCommitFilesResult({
+          status: "error",
+          repositoryId,
+          sha: shaValue,
+          error: message,
+          payload,
+        });
+        return;
+      }
+
+      const items = parseCommitFiles(payload);
+      if (!items) {
+        setCommitFilesResult({
+          status: "error",
+          repositoryId,
+          sha: shaValue,
+          error: "Unexpected response payload",
+          payload,
+        });
+        return;
+      }
+
+      setCommitFilesResult({
+        status: "success",
+        repositoryId,
+        sha: shaValue,
+        items,
+        payload,
+      });
+    } catch (error) {
+      setCommitFilesResult({
+        status: "error",
+        repositoryId,
+        sha: shaValue,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }, [commitDetailQuery, isAuthenticated]);
 
   const loadPullFeed = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -4574,6 +4971,280 @@ export default function Home() {
               {formatJson(commitFeedResult.payload)}
             </pre>
           )}
+        </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Repository commit explorer
+              </h2>
+              <p className="text-sm text-slate-600">
+                Calls <code className="font-mono text-xs">GET /api/repositories/&lt;id&gt;/commits</code>, <code className="font-mono text-xs">GET /api/repositories/&lt;id&gt;/commits/&lt;sha&gt;</code>, and <code className="font-mono text-xs">GET /api/repositories/&lt;id&gt;/commits/&lt;sha&gt;/files</code> to inspect synchronized commits.
+              </p>
+            </div>
+            <StatusBadge status={commitListResult.status} />
+          </div>
+
+          <div className="mt-6 border-t border-slate-200 pt-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-base font-semibold text-slate-900">Repository commit list</h3>
+              <StatusBadge status={commitListResult.status} />
+            </div>
+
+            <form
+              onSubmit={loadCommitList}
+              className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+            >
+              <label className="flex flex-col gap-1 text-sm text-slate-700">
+                <span className="font-medium text-slate-900">Repository ID</span>
+                <input
+                  type="text"
+                  value={commitListQuery.repositoryId}
+                  onChange={(event) =>
+                    setCommitListQuery((previous) => ({ ...previous, repositoryId: event.target.value }))
+                  }
+                  placeholder="321"
+                  className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none"
+                  required
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-slate-700">
+                <span className="font-medium text-slate-900">Limit</span>
+                <input
+                  type="text"
+                  value={commitListQuery.limit}
+                  onChange={(event) =>
+                    setCommitListQuery((previous) => ({ ...previous, limit: event.target.value }))
+                  }
+                  placeholder="20"
+                  className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-slate-700">
+                <span className="font-medium text-slate-900">Page</span>
+                <input
+                  type="text"
+                  value={commitListQuery.page}
+                  onChange={(event) =>
+                    setCommitListQuery((previous) => ({ ...previous, page: event.target.value }))
+                  }
+                  placeholder="1"
+                  className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={commitListResult.status === "loading"}
+                className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 md:col-span-2 lg:col-span-1"
+              >
+                Fetch commits
+              </button>
+            </form>
+
+            {commitListResult.error && (
+              <p className="mt-3 text-sm text-rose-600">{commitListResult.error}</p>
+            )}
+
+            {commitListResult.status === "success" && commitListResult.items && (
+              commitListResult.items.length > 0 ? (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-slate-700">Commit</th>
+                        <th className="px-3 py-2 text-left font-semibold text-slate-700">Repository</th>
+                        <th className="px-3 py-2 text-left font-semibold text-slate-700">Author</th>
+                        <th className="px-3 py-2 text-left font-semibold text-slate-700">Committed at</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {commitListResult.items.map((commit) => (
+                        <tr key={`commit-list-${commit.id}-${commit.sha}`} className="hover:bg-slate-50">
+                          <td className="px-3 py-2 text-slate-600">
+                            <div className="font-medium text-slate-900">{commit.message ?? "No message"}</div>
+                            {commit.url && (
+                              <a
+                                href={commit.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-blue-600 underline hover:text-blue-800"
+                              >
+                                View on GitHub
+                              </a>
+                            )}
+                            <div className="text-xs font-mono text-slate-500">{commit.sha}</div>
+                          </td>
+                          <td className="px-3 py-2 text-slate-600">{commit.repositoryFullName ?? "—"}</td>
+                          <td className="px-3 py-2 text-slate-600">{commit.authorName ?? commit.committerName ?? "—"}</td>
+                          <td className="px-3 py-2 font-mono text-xs text-slate-600">{commit.committedAt ?? "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-slate-600">No commits were found for the selected repository.</p>
+              )
+            )}
+
+            {commitListResult.payload !== undefined && (
+              <pre className="mt-4 overflow-x-auto rounded bg-slate-950/90 p-4 text-xs text-slate-100">
+                {formatJson(commitListResult.payload)}
+              </pre>
+            )}
+          </div>
+
+          <div className="mt-6 border-t border-slate-200 pt-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-base font-semibold text-slate-900">Commit detail lookup</h3>
+              <StatusBadge status={commitDetailResult.status} />
+            </div>
+
+            <form
+              onSubmit={loadCommitDetail}
+              className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+            >
+              <label className="flex w-full flex-col gap-1 text-sm text-slate-700 sm:max-w-xs">
+                <span className="font-medium text-slate-900">Repository ID</span>
+                <input
+                  type="text"
+                  value={commitDetailQuery.repositoryId}
+                  onChange={(event) =>
+                    setCommitDetailQuery((previous) => ({ ...previous, repositoryId: event.target.value }))
+                  }
+                  placeholder="321"
+                  className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none"
+                  required
+                />
+              </label>
+              <label className="flex w-full flex-col gap-1 text-sm text-slate-700 sm:max-w-xs">
+                <span className="font-medium text-slate-900">Commit SHA</span>
+                <input
+                  type="text"
+                  value={commitDetailQuery.sha}
+                  onChange={(event) =>
+                    setCommitDetailQuery((previous) => ({ ...previous, sha: event.target.value }))
+                  }
+                  placeholder="d34db33f"
+                  className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none"
+                  required
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={commitDetailResult.status === "loading"}
+                className="w-full rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white sm:w-auto disabled:opacity-40"
+              >
+                Fetch commit
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void loadCommitFiles();
+                }}
+                disabled={commitFilesResult.status === "loading"}
+                className="w-full rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:w-auto disabled:opacity-40"
+              >
+                Fetch changed files
+              </button>
+            </form>
+
+            {commitDetailResult.error && (
+              <p className="mt-3 text-sm text-rose-600">{commitDetailResult.error}</p>
+            )}
+
+            {commitDetailResult.status === "success" && commitDetailResult.data && (
+              <div className="mt-4 space-y-3 rounded border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                <div className="flex flex-col gap-1 text-slate-800">
+                  <span className="text-base font-semibold text-slate-900">
+                    {commitDetailResult.data.message ?? "No commit message"}
+                  </span>
+                  <span className="text-xs font-mono text-slate-500">{commitDetailResult.data.sha}</span>
+                  <span className="text-xs font-mono text-slate-500">{commitDetailResult.data.repositoryFullName ?? "Unknown repository"}</span>
+                </div>
+                <div>Author: {commitDetailResult.data.authorName ?? "—"}</div>
+                <div>Committer: {commitDetailResult.data.committerName ?? "—"}</div>
+                <div>
+                  Committed: {commitDetailResult.data.committedAt ?? "—"} · Pushed: {commitDetailResult.data.pushedAt ?? "—"}
+                </div>
+                {commitDetailResult.data.url && (
+                  <a
+                    href={commitDetailResult.data.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-blue-600 underline hover:text-blue-800"
+                  >
+                    View on GitHub
+                  </a>
+                )}
+              </div>
+            )}
+
+            {commitDetailResult.payload !== undefined && (
+              <pre className="mt-4 overflow-x-auto rounded bg-slate-950/90 p-4 text-xs text-slate-100">
+                {formatJson(commitDetailResult.payload)}
+              </pre>
+            )}
+
+            <div className="mt-6 rounded border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h4 className="text-sm font-semibold text-slate-900">Changed files</h4>
+                <StatusBadge status={commitFilesResult.status} />
+              </div>
+
+              {commitFilesResult.error && (
+                <p className="mt-3 text-sm text-rose-600">{commitFilesResult.error}</p>
+              )}
+
+              {commitFilesResult.status === "success" && commitFilesResult.items && (
+                commitFilesResult.items.length > 0 ? (
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="min-w-full divide-y divide-slate-200 text-sm">
+                      <thead className="bg-slate-100">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold text-slate-700">Path</th>
+                          <th className="px-3 py-2 text-left font-semibold text-slate-700">Status</th>
+                          <th className="px-3 py-2 text-left font-semibold text-slate-700">Changes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {commitFilesResult.items.map((file) => (
+                          <tr key={`commit-file-${file.id}-${file.path}`} className="hover:bg-slate-100">
+                            <td className="px-3 py-2 text-slate-600">
+                              <div className="font-mono text-xs text-slate-700">{file.path}</div>
+                              {file.rawBlobUrl && (
+                                <a
+                                  href={file.rawBlobUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs text-blue-600 underline hover:text-blue-800"
+                                >
+                                  Raw diff
+                                </a>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 text-slate-600">{file.status ?? "—"}</td>
+                            <td className="px-3 py-2 font-mono text-xs text-slate-600">
+                              +{file.additions ?? 0} / -{file.deletions ?? 0} ({file.changes ?? "—"})
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-slate-600">No file information available for the current commit.</p>
+                )
+              )}
+
+              {commitFilesResult.payload !== undefined && (
+                <pre className="mt-3 overflow-x-auto rounded bg-slate-950/90 p-4 text-xs text-slate-100">
+                  {formatJson(commitFilesResult.payload)}
+                </pre>
+              )}
+            </div>
+          </div>
         </section>
 
         <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">

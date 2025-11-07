@@ -306,6 +306,44 @@ export type CommitFeed = {
   nextCursor: string | null;
 };
 
+export type CommitListItem = {
+  id: number;
+  sha: string;
+  message: string | null;
+  repositoryFullName: string | null;
+  authorName: string | null;
+  committerName: string | null;
+  committedAt: string | null;
+  url: string | null;
+};
+
+export type CommitDetail = {
+  id: number;
+  sha: string;
+  repositoryId: number | null;
+  repositoryFullName: string | null;
+  message: string | null;
+  url: string | null;
+  authorName: string | null;
+  authorEmail: string | null;
+  committerName: string | null;
+  committerEmail: string | null;
+  committedAt: string | null;
+  pushedAt: string | null;
+};
+
+export type CommitFileItem = {
+  id: number;
+  path: string;
+  filename: string | null;
+  extension: string | null;
+  status: string | null;
+  additions: number | null;
+  deletions: number | null;
+  changes: number | null;
+  rawBlobUrl: string | null;
+};
+
 export type PullRequestUserSummary = {
   userId: number | null;
   githubId: number | null;
@@ -1259,6 +1297,105 @@ export function parseCommitFeedResponse(value: unknown): CommitFeed | undefined 
     items,
     nextCursor: typeof record.nextCursor === "string" ? record.nextCursor : null,
   };
+}
+
+export function parseCommitList(value: unknown): CommitListItem[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const items: CommitListItem[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+    const record = entry as Record<string, unknown>;
+    if (typeof record.id !== "number" || typeof record.sha !== "string") {
+      continue;
+    }
+    items.push({
+      id: record.id,
+      sha: record.sha,
+      message: typeof record.message === "string" ? record.message : null,
+      repositoryFullName:
+        typeof record.repositoryFullName === "string"
+          ? record.repositoryFullName
+          : null,
+      authorName: typeof record.authorName === "string" ? record.authorName : null,
+      committerName:
+        typeof record.committerName === "string" ? record.committerName : null,
+      committedAt:
+        typeof record.committedAt === "string" ? record.committedAt : null,
+      url: typeof record.url === "string" ? record.url : null,
+    });
+  }
+
+  return items;
+}
+
+export function parseCommitDetail(value: unknown): CommitDetail | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  if (typeof record.id !== "number" || typeof record.sha !== "string") {
+    return undefined;
+  }
+
+  return {
+    id: record.id,
+    sha: record.sha,
+    repositoryId:
+      typeof record.repositoryId === "number" ? record.repositoryId : null,
+    repositoryFullName:
+      typeof record.repositoryFullName === "string"
+        ? record.repositoryFullName
+        : null,
+    message: typeof record.message === "string" ? record.message : null,
+    url: typeof record.url === "string" ? record.url : null,
+    authorName: typeof record.authorName === "string" ? record.authorName : null,
+    authorEmail:
+      typeof record.authorEmail === "string" ? record.authorEmail : null,
+    committerName:
+      typeof record.committerName === "string" ? record.committerName : null,
+    committerEmail:
+      typeof record.committerEmail === "string" ? record.committerEmail : null,
+    committedAt:
+      typeof record.committedAt === "string" ? record.committedAt : null,
+    pushedAt: typeof record.pushedAt === "string" ? record.pushedAt : null,
+  };
+}
+
+export function parseCommitFiles(value: unknown): CommitFileItem[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const items: CommitFileItem[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+    const record = entry as Record<string, unknown>;
+    if (typeof record.id !== "number" || typeof record.path !== "string") {
+      continue;
+    }
+    items.push({
+      id: record.id,
+      path: record.path,
+      filename: typeof record.filename === "string" ? record.filename : null,
+      extension: typeof record.extension === "string" ? record.extension : null,
+      status: typeof record.status === "string" ? record.status : null,
+      additions: typeof record.additions === "number" ? record.additions : null,
+      deletions: typeof record.deletions === "number" ? record.deletions : null,
+      changes: typeof record.changes === "number" ? record.changes : null,
+      rawBlobUrl:
+        typeof record.rawBlobUrl === "string" ? record.rawBlobUrl : null,
+    });
+  }
+
+  return items;
 }
 
 export function parsePullRequestList(value: unknown): PullRequestListItem[] | undefined {
