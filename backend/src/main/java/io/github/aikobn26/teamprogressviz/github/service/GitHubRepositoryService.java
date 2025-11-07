@@ -119,7 +119,7 @@ public class GitHubRepositoryService {
                 .toList();
     }
 
-    public List<GitHubCommit> listCommits(String accessToken, String owner, String repository, int perPage, OffsetDateTime since) {
+        public List<GitHubCommit> listCommits(String accessToken, String owner, String repository, int perPage, OffsetDateTime since) {
         if (!hasText(accessToken) || !hasText(owner) || !hasText(repository)) {
             throw new IllegalArgumentException("accessToken, owner, and repository must not be blank");
         }
@@ -145,6 +145,47 @@ public class GitHubRepositoryService {
                 .map(this::toCommit)
                 .toList();
     }
+
+        public Optional<GitHubCommitDetail> getCommit(String accessToken, String owner, String repository, String sha) {
+                if (!hasText(accessToken) || !hasText(owner) || !hasText(repository) || !hasText(sha)) {
+                        throw new IllegalArgumentException("accessToken, owner, repository, and sha must not be blank");
+                }
+
+                URI uri = UriComponentsBuilder.fromUri(apiProperties.baseUrl())
+                                .pathSegment("repos", owner, repository, "commits", sha)
+                                .build()
+                                .toUri();
+
+                try {
+                        GitHubCommitResponse response = executeGet(uri, GitHubCommitResponse.class, accessToken,
+                                        "Failed to fetch commit detail");
+
+                        if (response == null) {
+                                return Optional.empty();
+                        }
+
+                        GitHubCommit commit = toCommit(response);
+                        List<GitHubCommitFile> files = response.files() == null
+                                        ? List.of()
+                                        : Arrays.stream(response.files())
+                                                        .filter(Objects::nonNull)
+                                                        .map(item -> new GitHubCommitFile(
+                                                                        item.filename(),
+                                                                        item.status(),
+                                                                        item.additions(),
+                                                                        item.deletions(),
+                                                                        item.changes(),
+                                                                        item.rawUrl()))
+                                                        .toList();
+
+                        return Optional.of(new GitHubCommitDetail(commit, files));
+                } catch (GitHubApiException e) {
+                        if (e.statusCode() != null && e.statusCode().value() == 404) {
+                                return Optional.empty();
+                        }
+                        throw e;
+                }
+        }
 
     private GitHubCommit toCommit(GitHubCommitResponse response) {
         String authorName = null;
@@ -254,7 +295,8 @@ public class GitHubRepositoryService {
     private record GitHubCommitResponse(
             String sha,
             @JsonProperty("html_url") String htmlUrl,
-            CommitDetails commit
+            CommitDetails commit,
+            GitHubCommitFileResponse[] files
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -269,6 +311,16 @@ public class GitHubRepositoryService {
             String name,
             String email,
             OffsetDateTime date
+    ) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record GitHubCommitFileResponse(
+            String filename,
+            String status,
+            Integer additions,
+            Integer deletions,
+            Integer changes,
+            @JsonProperty("raw_url") String rawUrl
     ) {}
 
     public record GitHubPullRequestSummary(
@@ -321,5 +373,19 @@ public class GitHubRepositoryService {
             String committerName,
             String committerEmail,
             OffsetDateTime committedAt
+    ) {}
+
+    public record GitHubCommitDetail(
+            GitHubCommit commit,
+            List<GitHubCommitFile> files
+    ) {}
+
+    public record GitHubCommitFile(
+            String path,
+            String status,
+            Integer additions,
+            Integer deletions,
+            Integer changes,
+            String rawUrl
     ) {}
 }

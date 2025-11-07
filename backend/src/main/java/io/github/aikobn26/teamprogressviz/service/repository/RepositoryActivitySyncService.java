@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import io.github.aikobn26.teamprogressviz.entity.CommitFile;
 import io.github.aikobn26.teamprogressviz.entity.Organization;
 import io.github.aikobn26.teamprogressviz.entity.PullRequest;
 import io.github.aikobn26.teamprogressviz.entity.PullRequestFile;
@@ -24,10 +25,13 @@ import io.github.aikobn26.teamprogressviz.exception.ValidationException;
 import io.github.aikobn26.teamprogressviz.github.exception.GitHubApiException;
 import io.github.aikobn26.teamprogressviz.github.service.GitHubRepositoryService;
 import io.github.aikobn26.teamprogressviz.github.service.GitHubRepositoryService.GitHubCommit;
+import io.github.aikobn26.teamprogressviz.github.service.GitHubRepositoryService.GitHubCommitDetail;
+import io.github.aikobn26.teamprogressviz.github.service.GitHubRepositoryService.GitHubCommitFile;
 import io.github.aikobn26.teamprogressviz.github.service.GitHubRepositoryService.GitHubPullRequest;
 import io.github.aikobn26.teamprogressviz.github.service.GitHubRepositoryService.GitHubPullRequestFile;
 import io.github.aikobn26.teamprogressviz.github.service.GitHubRepositoryService.GitHubPullRequestSummary;
 import io.github.aikobn26.teamprogressviz.github.service.GitHubRepositoryService.GitHubSimpleUser;
+import io.github.aikobn26.teamprogressviz.repository.CommitFileRepository;
 import io.github.aikobn26.teamprogressviz.repository.GitCommitRepository;
 import io.github.aikobn26.teamprogressviz.repository.PullRequestFileRepository;
 import io.github.aikobn26.teamprogressviz.repository.PullRequestRepository;
@@ -51,6 +55,7 @@ public class RepositoryActivitySyncService {
     private final RepositoryRepository repositoryRepository;
     private final PullRequestRepository pullRequestRepository;
     private final PullRequestFileRepository pullRequestFileRepository;
+    private final CommitFileRepository commitFileRepository;
     private final GitCommitRepository gitCommitRepository;
     private final RepositorySyncStatusService repositorySyncStatusService;
     private final GitHubRepositoryService gitHubRepositoryService;
@@ -127,7 +132,7 @@ public class RepositoryActivitySyncService {
                     OffsetDateTime.now().minusDays(ACTIVITY_LOOKBACK_DAYS));
 
             for (GitHubCommit commit : commits) {
-                persistCommit(repository, commit);
+                persistCommit(repository, ownerRepo, accessToken, commit);
             }
 
             if (!commits.isEmpty() && commits.get(0) != null) {
@@ -219,7 +224,10 @@ public class RepositoryActivitySyncService {
         }
     }
 
-    private void persistCommit(Repository repository, GitHubCommit commit) {
+    private void persistCommit(Repository repository,
+                               OwnerRepo ownerRepo,
+                               String accessToken,
+                               GitHubCommit commit) {
         if (commit == null || !StringUtils.hasText(commit.sha())) {
             return;
         }
@@ -242,7 +250,64 @@ public class RepositoryActivitySyncService {
         entity.setPushedAt(commit.committedAt());
         entity.setDeletedAt(null);
 
-        gitCommitRepository.save(entity);
+        io.github.aikobn26.teamprogressviz.entity.GitCommit saved = gitCommitRepository.save(entity);
+
+        boolean hasFiles = commitFileRepository.existsByCommitIdAndDeletedAtIsNull(saved.getId());
+        if (!hasFiles && ownerRepo != null && StringUtils.hasText(accessToken)) {
+            Optional<GitHubCommitDetail> detailOpt = gitHubRepositoryService.getCommit(
+                    accessToken,
+                    ownerRepo.owner(),
+                    ownerRepo.name(),
+                    commit.sha());
+            detailOpt.ifPresent(detail -> synchronizeCommitFiles(saved, detail.files()));
+        }
+    }
+
+    private void synchronizeCommitFiles(io.github.aikobn26.teamprogressviz.entity.GitCommit commit,
+                                        List<GitHubCommitFile> files) {
+        Map<String, CommitFile> existing = new HashMap<>();
+        List<CommitFile> current = commitFileRepository
+                .findByCommitIdAndDeletedAtIsNullOrderByPathAsc(commit.getId());
+        for (CommitFile file : current) {
+            if (StringUtils.hasText(file.getPath())) {
+                existing.put(file.getPath(), file);
+            }
+        }
+
+        Set<String> incomingPaths = new HashSet<>();
+        if (files != null) {
+            for (GitHubCommitFile file : files) {
+                if (file == null || !StringUtils.hasText(file.path())) {
+                    continue;
+                }
+                incomingPaths.add(file.path());
+                CommitFile entity = existing.getOrDefault(file.path(), CommitFile.builder()
+                        .commit(commit)
+                        .path(file.path())
+                        .build());
+
+                entity.setCommit(commit);
+                entity.setPath(file.path());
+                entity.setExtension(extractExtension(file.path()));
+                entity.setStatus(file.status());
+                entity.setAdditions(file.additions());
+                entity.setDeletions(file.deletions());
+                entity.setChanges(file.changes());
+                entity.setRawBlobUrl(file.rawUrl());
+                entity.setDeletedAt(null);
+
+                commitFileRepository.save(entity);
+            }
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        for (Map.Entry<String, CommitFile> entry : existing.entrySet()) {
+            if (!incomingPaths.contains(entry.getKey())) {
+                CommitFile obsolete = entry.getValue();
+                obsolete.setDeletedAt(now);
+                commitFileRepository.save(obsolete);
+            }
+        }
     }
 
     private User toUser(GitHubSimpleUser simpleUser) {
