@@ -11,11 +11,11 @@ export default function Home() {
   useEffect(() => {
     const checkIsLogin = async () => {
     try{
-      const res = await fetch("http://localhost:8080/api/auth/session");
-      const data = await res.json();
+      const res = await fetch("http://localhost:8080/api/auth/session", {credentials: "include"});
+      const bodyText = await res.text();
+      const data = bodyText ? JSON.parse(bodyText) : null;
 
-      // responseがemptyだった場合は未ログインと判定
-      if(data.length == 0) {
+      if(!data || (Array.isArray(data) && data.length === 0)) {
         setIsLogin(false);
       } else{
         setIsLogin(true);
@@ -23,6 +23,7 @@ export default function Home() {
 
     } catch(err){
       console.error("fetch error:", err);
+      setIsLogin(false);
     } };
     checkIsLogin();
   }, []);

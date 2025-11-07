@@ -1,24 +1,28 @@
-import { useRouter } from "next/router";
-import { useEffect } from "react";
+"use client";
 
-export default function callback(){
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+export default function CallbackPage() {
   const router = useRouter();
-  const {status, message} = router.query;
+  const searchParams = useSearchParams();
+  const status = searchParams.get("status");
+  const message = searchParams.get("message");
 
   useEffect(() => {
     switch (status) {
       case "success":
         console.log("ログイン成功");
-        router.push("/");
+        router.push("/organizations");
         break;
-
       case "error":
-        console.error("ログイン失敗：",message);
+        console.error("ログイン失敗：", message);
         router.push("/login");
         break;
-      
       default:
-      break;
-  } 
-  },[status,message]);
+        break;
+    }
+  }, [router, status, message]);
+
+  return null;
 }
