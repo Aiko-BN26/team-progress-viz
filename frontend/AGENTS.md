@@ -7,8 +7,6 @@
     - `/enroll-organizations` : 組織登録ページ
     - `/organizations` : 組織一覧ページ
         - `/organizations/[id]` : 組織トップページ
-            - `/organizations/[id]/users` : ユーザー管理
-            - `/organizations/[id]/status` : ステータス入力
 - `/login` : ログイン
 
 ### タスク完了時の必須チェック
