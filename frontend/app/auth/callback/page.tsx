@@ -13,7 +13,7 @@ export default function CallbackPage() {
     switch (status) {
       case "success":
         console.log("ログイン成功");
-        router.push("/");
+        router.push("/organizations");
         break;
       case "error":
         console.error("ログイン失敗：", message);
