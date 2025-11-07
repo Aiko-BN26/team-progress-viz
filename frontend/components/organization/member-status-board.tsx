@@ -23,13 +23,6 @@ const FILTERS = [
   { id: "ちょっと", label: "ちょっと" },
 ];
 
-const STATUS_LABELS: Record<MemberStatus["status"], string> = {
-  完了: "完了",
-  集中: "集中",
-  休み: "休み",
-  ちょっと: "ちょっと",
-};
-
 const STATUS_STYLES: Record<MemberStatus["status"], string> = {
   完了: "bg-emerald-100 text-emerald-700",
   集中: "bg-sky-100 text-sky-700",
@@ -121,7 +114,7 @@ export function MemberStatusBoard({ members, timezone }: Props) {
                   <div>
                     <p className="font-medium leading-tight">{member.displayName}</p>
                     <p className="text-xs text-muted-foreground">
-                      最終更新: {formatDateTime(member.updatedAt)}
+                      最終提出: {formatDateTime(member.lastSubmittedAt)}
                     </p>
                   </div>
                 </div>
@@ -132,13 +125,15 @@ export function MemberStatusBoard({ members, timezone }: Props) {
                       STATUS_STYLES[member.status],
                     )}
                   >
-                    {STATUS_LABELS[member.status]}
+                    {member.status}
                   </span>
                   <p className="text-muted-foreground">
                     {member.statusMessage || "コメントなし"}
                   </p>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     <span>コミット {member.commitCount}</span>
+                    <span>稼働 {member.capacityHours ?? "--"}h</span>
+                    <span>連続 {member.streakDays}日</span>
                     {member.latestPrUrl ? (
                       <Link
                         href={member.latestPrUrl}

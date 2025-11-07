@@ -192,8 +192,8 @@ export default async function OrganizationDetailPage({ params }: PageProps) {
         />
         <StatCard
           label="継続日数"
-          value={`${detail.streakDays}日`}
-          subLabel="連続で報告中"
+          value={detail.streakDays != null ? `${detail.streakDays}日` : "--"}
+          subLabel={detail.streakDays != null ? "連続で報告中" : "記録なし"}
           icon={Loader2}
         />
       </section>

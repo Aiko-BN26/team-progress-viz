@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CalendarClock, PenSquare } from "lucide-react";
 
@@ -14,7 +15,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import type { PersonalStatus } from "../../app/organizations/[id]/types";
+import type {
+  MemberStatusState,
+  PersonalStatus,
+} from "../../app/organizations/[id]/types";
 
 const STATUS_OPTIONS = [
   { value: "完了", label: "完了" },
@@ -29,10 +33,11 @@ type Props = {
 };
 
 export function MyStatusCard({ timezone, personalStatus }: Props) {
-  const shouldAutoOpen =
-    !personalStatus.submitted && personalStatus.pendingReason === "first_access_today";
+  const shouldAutoOpen = !personalStatus.submitted;
   const [open, setOpen] = useState(shouldAutoOpen);
-  const [formStatus, setFormStatus] = useState(personalStatus.status ?? "集中");
+  const [formStatus, setFormStatus] = useState<MemberStatusState>(
+    (personalStatus.status ?? "集中") as MemberStatusState,
+  );
   const [formMessage, setFormMessage] = useState(personalStatus.statusMessage ?? "");
   const [formCapacity, setFormCapacity] = useState(
     personalStatus.capacityHours ?? 3,
@@ -95,7 +100,9 @@ export function MyStatusCard({ timezone, personalStatus }: Props) {
                   <label className="text-sm font-medium">ステータス</label>
                   <select
                     value={formStatus}
-                    onChange={(event) => setFormStatus(event.target.value)}
+                    onChange={(event) =>
+                      setFormStatus(event.target.value as MemberStatusState)
+                    }
                     className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
                     {STATUS_OPTIONS.map((option) => (
@@ -156,6 +163,19 @@ export function MyStatusCard({ timezone, personalStatus }: Props) {
               <p className="text-muted-foreground">{displayMessage}</p>
               <p className="text-muted-foreground">稼働予定: {displayCapacity}時間</p>
             </div>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+          <span>コミット {personalStatus.commitCount}</span>
+          <span>稼働 {personalStatus.capacityHours ?? "--"}h</span>
+          <span>連続 {personalStatus.streakDays}日</span>
+          {personalStatus.latestPrUrl && (
+            <Link
+              href={personalStatus.latestPrUrl}
+              className="text-primary underline-offset-4 hover:underline"
+            >
+              最新PRを開く
+            </Link>
           )}
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">

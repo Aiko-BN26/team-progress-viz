@@ -7,29 +7,34 @@ export type OrganizationDetail = {
   memberCount: number;
   activeToday: number;
   pendingStatusCount: number;
-  streakDays: number;
+  streakDays?: number | null;
   lastActivity: string;
   publicShareUrl: string;
 };
 
+export type MemberStatusState = "完了" | "集中" | "休み" | "ちょっと";
+
 export type PersonalStatus = {
-  date: string;
   submitted: boolean;
-  status?: string | null;
+  status?: MemberStatusState | null;
   statusMessage?: string | null;
-  capacityHours?: number | null;
-  lastSubmittedAt?: string | null;
-  pendingReason?: string | null;
+  lastSubmittedAt: string | null;
+  commitCount: number;
+  capacityHours: number | null;
+  streakDays: number;
+  latestPrUrl: string | null;
 };
 
 export type MemberStatus = {
   memberId: string;
   displayName: string;
   avatarUrl: string;
-  status: "完了" | "集中" | "休み" | "ちょっと";
+  status: MemberStatusState;
   statusMessage: string | null;
-  updatedAt: string | null;
+  lastSubmittedAt: string | null;
   commitCount: number;
+  capacityHours: number | null;
+  streakDays: number;
   latestPrUrl: string | null;
 };
 
