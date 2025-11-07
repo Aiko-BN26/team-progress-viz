@@ -32,6 +32,27 @@ class GitHubOrganizationServiceTest {
     }
 
     @Test
+    void getOrganization_returnsOrganizationDetails() {
+        ExchangeFunction stub = request -> {
+            if (request.url().toString().equals("https://api.github.com/orgs/octo-org")) {
+                var response = ClientResponse.create(HttpStatus.OK)
+                        .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .body("{\"id\":1,\"login\":\"octo-org\",\"name\":\"Octo Org\",\"description\":\"Org description\",\"avatar_url\":\"https://avatars.githubusercontent.com/u/1\",\"html_url\":\"https://github.com/octo-org\"}")
+                        .build();
+                return Mono.just(response);
+            }
+            return Mono.error(new IllegalStateException("Unexpected request: " + request.url()));
+        };
+
+        var service = new GitHubOrganizationService(buildClient(stub), properties);
+
+        var organization = service.getOrganization("token-abc", "octo-org");
+
+        assertThat(organization).isPresent();
+        assertThat(organization.get().login()).isEqualTo("octo-org");
+    }
+
+    @Test
     void listOrganizations_returnsMappedOrganizations() {
         ExchangeFunction stub = request -> {
             if (request.url().toString().equals("https://api.github.com/user/orgs?per_page=100")) {
@@ -92,7 +113,7 @@ class GitHubOrganizationServiceTest {
     @Test
     void listMembers_returnsMappedMembers() {
         ExchangeFunction stub = request -> {
-            if (request.url().toString().equals("https://api.github.com/orgs/octo-org/members?per_page=100")) {
+            if (request.url().toString().equals("https://api.github.com/orgs/octo-org/members?per_page=100&role=all")) {
                 var response = ClientResponse.create(HttpStatus.OK)
                         .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                         .body("[{\"id\":77,\"login\":\"octocat\",\"avatar_url\":\"https://avatars.githubusercontent.com/u/77\",\"html_url\":\"https://github.com/octocat\",\"type\":\"User\",\"site_admin\":false}]")
