@@ -3,6 +3,7 @@ package io.github.aikobn26.teamprogressviz.service.user;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,10 @@ public class UserService {
     private final ActivityDailyRepository activityDailyRepository;
 
     public User ensureUserExists(AuthenticatedUser authenticatedUser) {
+        return ensureUserExists(authenticatedUser, null);
+    }
+
+    public User ensureUserExists(AuthenticatedUser authenticatedUser, Consumer<User> onCreated) {
         if (authenticatedUser == null) {
             throw new IllegalArgumentException("authenticatedUser must not be null");
         }
@@ -47,7 +52,11 @@ public class UserService {
                 .avatarUrl(authenticatedUser.avatarUrl())
                 .deletedAt(null)
                 .build();
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        if (onCreated != null) {
+            onCreated.accept(saved);
+        }
+        return saved;
     }
 
     @Transactional(readOnly = true)

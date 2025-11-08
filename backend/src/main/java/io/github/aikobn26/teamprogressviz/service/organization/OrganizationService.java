@@ -102,16 +102,17 @@ public class OrganizationService {
             return repository.getFullName();
         }
         Organization organization = repository.getOrganization();
-        if (organization != null && StringUtils.hasText(organization.getLogin()) && StringUtils.hasText(repository.getName())) {
+        if (organization != null && StringUtils.hasText(organization.getLogin())
+                && StringUtils.hasText(repository.getName())) {
             return organization.getLogin() + "/" + repository.getName();
         }
         return repository.getName();
     }
 
     public OrganizationSyncResult registerOrganization(User user,
-                                                        String login,
-                                                        String defaultLinkUrl,
-                                                        String accessToken) {
+            String login,
+            String defaultLinkUrl,
+            String accessToken) {
         if (user == null) {
             throw new IllegalArgumentException("user must not be null");
         }
@@ -124,24 +125,15 @@ public class OrganizationService {
 
         String normalizedLogin = login.trim();
         GitHubOrganization gitHubOrganization = gitHubOrganizationService.getOrganization(accessToken, normalizedLogin)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found on GitHub: " + normalizedLogin));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Organization not found on GitHub: " + normalizedLogin));
 
         Organization organization = resolveOrganization(gitHubOrganization, defaultLinkUrl);
-    Organization savedOrganization = organizationRepository.save(organization);
+        Organization savedOrganization = organizationRepository.save(organization);
 
-    ensureMembership(user, savedOrganization);
+        ensureMembership(user, savedOrganization);
 
-    List<GitHubRepository> gitHubRepositories = gitHubOrganizationService
-        .listRepositories(accessToken, savedOrganization.getLogin());
-    int syncedRepositories = syncRepositories(savedOrganization, gitHubRepositories);
-
-    List<GitHubOrganizationMember> gitHubMembers = gitHubOrganizationService
-        .listMembers(accessToken, savedOrganization.getLogin());
-    syncOrganizationMembers(savedOrganization, gitHubMembers);
-
-    repositoryActivitySyncService.synchronizeActivities(savedOrganization, accessToken);
-
-    return new OrganizationSyncResult(savedOrganization, gitHubOrganization, syncedRepositories);
+        return new OrganizationSyncResult(savedOrganization, gitHubOrganization, 0);
     }
 
     public OrganizationSyncResult synchronizeOrganization(Long organizationId, String accessToken) {
@@ -155,21 +147,23 @@ public class OrganizationService {
         Organization organization = organizationRepository.findByIdAndDeletedAtIsNull(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        GitHubOrganization gitHubOrganization = gitHubOrganizationService.getOrganization(accessToken, organization.getLogin())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found on GitHub: " + organization.getLogin()));
+        GitHubOrganization gitHubOrganization = gitHubOrganizationService
+                .getOrganization(accessToken, organization.getLogin())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Organization not found on GitHub: " + organization.getLogin()));
 
         updateOrganizationFields(organization, gitHubOrganization, organization.getDefaultLinkUrl());
         Organization savedOrganization = organizationRepository.save(organization);
 
-    List<GitHubRepository> gitHubRepositories = gitHubOrganizationService
-        .listRepositories(accessToken, savedOrganization.getLogin());
-    int syncedRepositories = syncRepositories(savedOrganization, gitHubRepositories);
+        List<GitHubRepository> gitHubRepositories = gitHubOrganizationService
+                .listRepositories(accessToken, savedOrganization.getLogin());
+        int syncedRepositories = syncRepositories(savedOrganization, gitHubRepositories);
 
-    List<GitHubOrganizationMember> gitHubMembers = gitHubOrganizationService
-        .listMembers(accessToken, savedOrganization.getLogin());
-    syncOrganizationMembers(savedOrganization, gitHubMembers);
+        List<GitHubOrganizationMember> gitHubMembers = gitHubOrganizationService
+                .listMembers(accessToken, savedOrganization.getLogin());
+        syncOrganizationMembers(savedOrganization, gitHubMembers);
 
-    repositoryActivitySyncService.synchronizeActivities(savedOrganization, accessToken);
+        repositoryActivitySyncService.synchronizeActivities(savedOrganization, accessToken);
 
         return new OrganizationSyncResult(savedOrganization, gitHubOrganization, syncedRepositories);
     }
@@ -198,8 +192,8 @@ public class OrganizationService {
     }
 
     private void updateOrganizationFields(Organization organization,
-                                          GitHubOrganization gitHubOrganization,
-                                          String defaultLinkUrl) {
+            GitHubOrganization gitHubOrganization,
+            String defaultLinkUrl) {
         organization.setGithubId(gitHubOrganization.id());
         organization.setLogin(gitHubOrganization.login());
         organization.setName(gitHubOrganization.name());
@@ -323,28 +317,29 @@ public class OrganizationService {
         UserOrganization membership = requireActiveMembership(user, organizationId);
         Organization organization = membership.getOrganization();
 
-        List<UserOrganization> memberships = userOrganizationRepository.findByOrganizationIdAndDeletedAtIsNull(organization.getId());
+        List<UserOrganization> memberships = userOrganizationRepository
+                .findByOrganizationIdAndDeletedAtIsNull(organization.getId());
         List<MemberDetail> members = memberships.stream()
                 .map(this::toMemberDetail)
                 .toList();
 
         List<Repository> repositories = repositoryRepository.findByOrganizationAndDeletedAtIsNull(organization);
 
-    ActivitySummary activitySummary = buildActivitySummary(organization, members.size());
-    PullRequestSummary pullRequestSummary = buildPullRequestSummary(organization);
-    List<PullRequestDetail> pullRequestFeed = loadRecentPullRequests(organization.getId());
-    List<CommitDetail> commitFeed = loadRecentCommits(organization.getId());
-    List<CommentDetail> commentFeed = loadRecentComments(organization.getId());
+        ActivitySummary activitySummary = buildActivitySummary(organization, members.size());
+        PullRequestSummary pullRequestSummary = buildPullRequestSummary(organization);
+        List<PullRequestDetail> pullRequestFeed = loadRecentPullRequests(organization.getId());
+        List<CommitDetail> commitFeed = loadRecentCommits(organization.getId());
+        List<CommentDetail> commentFeed = loadRecentComments(organization.getId());
 
-    return new OrganizationDetail(
-        organization,
-        members,
-        repositories,
-        activitySummary,
-        pullRequestSummary,
-        pullRequestFeed,
-        commitFeed,
-        commentFeed);
+        return new OrganizationDetail(
+                organization,
+                members,
+                repositories,
+                activitySummary,
+                pullRequestSummary,
+                pullRequestFeed,
+                commitFeed,
+                commentFeed);
     }
 
     private ActivitySummary buildActivitySummary(Organization organization, int memberCount) {
@@ -364,9 +359,12 @@ public class OrganizationService {
             return new PullRequestSummary(0L, 0L, 0L);
         }
 
-        long open = pullRequestRepository.countByRepositoryOrganizationIdAndStateIgnoreCaseAndDeletedAtIsNull(organization.getId(), "open");
-        long closed = pullRequestRepository.countByRepositoryOrganizationIdAndStateIgnoreCaseAndDeletedAtIsNull(organization.getId(), "closed");
-        long merged = pullRequestRepository.countByRepositoryOrganizationIdAndMergedIsTrueAndDeletedAtIsNull(organization.getId());
+        long open = pullRequestRepository
+                .countByRepositoryOrganizationIdAndStateIgnoreCaseAndDeletedAtIsNull(organization.getId(), "open");
+        long closed = pullRequestRepository
+                .countByRepositoryOrganizationIdAndStateIgnoreCaseAndDeletedAtIsNull(organization.getId(), "closed");
+        long merged = pullRequestRepository
+                .countByRepositoryOrganizationIdAndMergedIsTrueAndDeletedAtIsNull(organization.getId());
         return new PullRequestSummary(open, closed, merged);
     }
 
@@ -374,7 +372,8 @@ public class OrganizationService {
         if (organizationId == null) {
             return List.of();
         }
-        var pageable = PageRequest.of(0, RECENT_PULL_REQUEST_LIMIT, Sort.by(Sort.Direction.DESC, "updatedAt", "createdAt"));
+        var pageable = PageRequest.of(0, RECENT_PULL_REQUEST_LIMIT,
+                Sort.by(Sort.Direction.DESC, "updatedAt", "createdAt"));
         return pullRequestRepository.findByRepositoryOrganizationIdAndDeletedAtIsNull(organizationId, pageable).stream()
                 .map(this::toPullRequestDetail)
                 .filter(Objects::nonNull)
@@ -488,7 +487,8 @@ public class OrganizationService {
     public void deleteOrganization(User user, Long organizationId) {
         Organization organization = requireOrganizationForDeletion(user, organizationId);
 
-        List<UserOrganization> memberships = userOrganizationRepository.findByOrganizationIdAndDeletedAtIsNull(organizationId);
+        List<UserOrganization> memberships = userOrganizationRepository
+                .findByOrganizationIdAndDeletedAtIsNull(organizationId);
         List<Repository> repositories = repositoryRepository.findByOrganizationAndDeletedAtIsNull(organization);
 
         OffsetDateTime now = OffsetDateTime.now();
@@ -540,7 +540,8 @@ public class OrganizationService {
             return 0;
         }
 
-        Map<Long, Repository> existing = repositoryRepository.findByOrganizationAndDeletedAtIsNull(organization).stream()
+        Map<Long, Repository> existing = repositoryRepository.findByOrganizationAndDeletedAtIsNull(organization)
+                .stream()
                 .filter(repository -> repository.getGithubId() != null)
                 .collect(Collectors.toMap(Repository::getGithubId, Function.identity()));
 
@@ -596,91 +597,91 @@ public class OrganizationService {
     }
 
     public record OrganizationSyncResult(Organization organization,
-                                         GitHubOrganization gitHubOrganization,
-                                         int syncedRepositories) {
+            GitHubOrganization gitHubOrganization,
+            int syncedRepositories) {
     }
 
     public record OrganizationDetail(Organization organization,
-                                      List<MemberDetail> members,
-                                      List<Repository> repositories,
-                                      ActivitySummary activitySummaryLast7Days,
-                                      PullRequestSummary pullRequestSummary,
-                                      List<PullRequestDetail> recentPullRequests,
-                                      List<CommitDetail> recentCommits,
-                                      List<CommentDetail> recentComments) {
+            List<MemberDetail> members,
+            List<Repository> repositories,
+            ActivitySummary activitySummaryLast7Days,
+            PullRequestSummary pullRequestSummary,
+            List<PullRequestDetail> recentPullRequests,
+            List<CommitDetail> recentCommits,
+            List<CommentDetail> recentComments) {
     }
 
     public record MemberDetail(Long userId,
-                               Long githubId,
-                               String login,
-                               String name,
-                               String avatarUrl,
-                               String role) {
+            Long githubId,
+            String login,
+            String name,
+            String avatarUrl,
+            String role) {
     }
 
     public record ActivitySummary(long commitCount,
-                                  long additions,
-                                  long deletions,
-                                  int activeMembers) {
+            long additions,
+            long deletions,
+            int activeMembers) {
     }
 
     public record RepositorySyncStatusView(Long repositoryId,
-                                           String repositoryFullName,
-                                           OffsetDateTime lastSyncedAt,
-                                           String lastSyncedCommitSha,
-                                           String errorMessage) {
+            String repositoryFullName,
+            OffsetDateTime lastSyncedAt,
+            String lastSyncedCommitSha,
+            String errorMessage) {
     }
 
     public record PullRequestSummary(long openCount,
-                                     long closedCount,
-                                     long mergedCount) {
+            long closedCount,
+            long mergedCount) {
     }
 
     public record PullRequestDetail(Long id,
-                                    Integer number,
-                                    Long repositoryId,
-                                    String repositoryFullName,
-                                    String title,
-                                    String state,
-                                    boolean merged,
-                                    String htmlUrl,
-                                    SimpleUser author,
-                                    SimpleUser mergedBy,
-                                    Integer additions,
-                                    Integer deletions,
-                                    Integer changedFiles,
-                                    OffsetDateTime createdAt,
-                                    OffsetDateTime updatedAt,
-                                    OffsetDateTime mergedAt,
-                                    OffsetDateTime closedAt) {
+            Integer number,
+            Long repositoryId,
+            String repositoryFullName,
+            String title,
+            String state,
+            boolean merged,
+            String htmlUrl,
+            SimpleUser author,
+            SimpleUser mergedBy,
+            Integer additions,
+            Integer deletions,
+            Integer changedFiles,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt,
+            OffsetDateTime mergedAt,
+            OffsetDateTime closedAt) {
     }
 
     public record CommitDetail(Long id,
-                               String sha,
-                               String message,
-                               Long repositoryId,
-                               String repositoryFullName,
-                               String htmlUrl,
-                               String authorName,
-                               String committerName,
-                               OffsetDateTime committedAt,
-                               OffsetDateTime pushedAt) {
+            String sha,
+            String message,
+            Long repositoryId,
+            String repositoryFullName,
+            String htmlUrl,
+            String authorName,
+            String committerName,
+            OffsetDateTime committedAt,
+            OffsetDateTime pushedAt) {
     }
 
     public record CommentDetail(Long id,
-                                SimpleUser user,
-                                String targetType,
-                                Long targetId,
-                                Long parentCommentId,
-                                String content,
-                                OffsetDateTime createdAt,
-                                OffsetDateTime updatedAt) {
+            SimpleUser user,
+            String targetType,
+            Long targetId,
+            Long parentCommentId,
+            String content,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt) {
     }
 
     public record SimpleUser(Long userId,
-                             Long githubId,
-                             String login,
-                             String name,
-                             String avatarUrl) {
+            Long githubId,
+            String login,
+            String name,
+            String avatarUrl) {
     }
 }

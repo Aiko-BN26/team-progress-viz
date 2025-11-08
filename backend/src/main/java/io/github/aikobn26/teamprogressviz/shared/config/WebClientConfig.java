@@ -13,10 +13,11 @@ public class WebClientConfig {
     @Bean
     public WebClient webClient() {
         HttpClient httpClient = HttpClient.create()
-            .resolver(DefaultAddressResolverGroup.INSTANCE); 
+                .resolver(DefaultAddressResolverGroup.INSTANCE);
 
         return WebClient.builder()
-            .clientConnector(new ReactorClientHttpConnector(httpClient))
-            .build();
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .codecs(codec -> codec.defaultCodecs().maxInMemorySize(4 * 1024 * 1024))
+                .build();
     }
 }

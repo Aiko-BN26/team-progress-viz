@@ -2,6 +2,8 @@ package io.github.aikobn26.teamprogressviz.service.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -69,5 +71,16 @@ class UserServiceTest {
 
         assertThat(user.getDeletedAt()).isNull();
         assertThat(user.getLogin()).isEqualTo("revived");
+    }
+
+    @Test
+    void ensureUserExists_executesCallbackWhenUserIsCreated() {
+        var authUser = new AuthenticatedUser(400L, "newbie", "New User", "https://avatar");
+        AtomicReference<User> captured = new AtomicReference<>();
+
+        User user = userService.ensureUserExists(authUser, captured::set);
+
+        assertThat(captured.get()).isNotNull();
+        assertThat(captured.get()).isEqualTo(user);
     }
 }

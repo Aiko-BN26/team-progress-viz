@@ -2,7 +2,6 @@ package io.github.aikobn26.teamprogressviz.service.repository;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -43,12 +42,13 @@ public class PullRequestService {
     private final PullRequestFileRepository pullRequestFileRepository;
 
     public List<PullRequestListItemResponse> listPullRequests(User user,
-                                                              Long repositoryId,
-                                                              String state,
-                                                              Integer limit,
-                                                              Integer page) {
+            Long repositoryId,
+            String state,
+            Integer limit,
+            Integer page) {
         Repository repository = requireAccessibleRepository(user, repositoryId);
-        Pageable pageable = PageRequest.of(normalizePage(page), normalizeSize(limit), Sort.by(Sort.Direction.DESC, "updatedAt", "createdAt"));
+        Pageable pageable = PageRequest.of(normalizePage(page), normalizeSize(limit),
+                Sort.by(Sort.Direction.DESC, "updatedAt", "createdAt"));
 
         Page<PullRequest> result;
         String normalizedState = normalizeState(state);
@@ -62,14 +62,14 @@ public class PullRequestService {
                             pageable);
         }
 
-    return result.getContent().stream()
-        .map(this::toListItem)
-        .toList();
+        return result.getContent().stream()
+                .map(this::toListItem)
+                .toList();
     }
 
     public PullRequestDetailResponse getPullRequest(User user,
-                                                    Long repositoryId,
-                                                    Integer pullNumber) {
+            Long repositoryId,
+            Integer pullNumber) {
         Repository repository = requireAccessibleRepository(user, repositoryId);
         PullRequest pullRequest = pullRequestRepository
                 .findByRepositoryIdAndNumberAndDeletedAtIsNull(repository.getId(), pullNumber)
@@ -78,8 +78,8 @@ public class PullRequestService {
     }
 
     public List<PullRequestFileResponse> listFiles(User user,
-                                                   Long repositoryId,
-                                                   Integer pullNumber) {
+            Long repositoryId,
+            Integer pullNumber) {
         Repository repository = requireAccessibleRepository(user, repositoryId);
         PullRequest pullRequest = pullRequestRepository
                 .findByRepositoryIdAndNumberAndDeletedAtIsNull(repository.getId(), pullNumber)
@@ -93,9 +93,9 @@ public class PullRequestService {
     }
 
     public PullRequestFeedResponse fetchFeed(User user,
-                                             Long organizationId,
-                                             Long cursor,
-                                             Integer limit) {
+            Long organizationId,
+            Long cursor,
+            Integer limit) {
         Organization organization = organizationService.getAccessibleOrganization(user, organizationId);
         int pageSize = normalizeSize(limit);
         Pageable pageable = PageRequest.of(0, pageSize, Sort.by(Sort.Direction.DESC, "updatedAt", "id"));
@@ -103,7 +103,8 @@ public class PullRequestService {
         Page<PullRequest> page;
         if (cursor != null && cursor > 0) {
             page = pullRequestRepository
-                    .findByRepositoryOrganizationIdAndIdLessThanAndDeletedAtIsNull(organization.getId(), cursor, pageable);
+                    .findByRepositoryOrganizationIdAndIdLessThanAndDeletedAtIsNull(organization.getId(), cursor,
+                            pageable);
         } else {
             page = pullRequestRepository
                     .findByRepositoryOrganizationIdAndDeletedAtIsNull(organization.getId(), pageable);
@@ -161,8 +162,9 @@ public class PullRequestService {
     }
 
     private PullRequestListItemResponse toListItem(PullRequest pullRequest) {
-    PullRequestListItemResponse.UserSummary user = toListUserSummary(pullRequest.getAuthor());
-        String repositoryFullName = pullRequest.getRepository() != null ? pullRequest.getRepository().getFullName() : null;
+        PullRequestListItemResponse.UserSummary user = toListUserSummary(pullRequest.getAuthor());
+        String repositoryFullName = pullRequest.getRepository() != null ? pullRequest.getRepository().getFullName()
+                : null;
         return new PullRequestListItemResponse(
                 pullRequest.getId(),
                 pullRequest.getNumber(),
@@ -171,13 +173,13 @@ public class PullRequestService {
                 user,
                 pullRequest.getCreatedAt(),
                 pullRequest.getUpdatedAt(),
-                repositoryFullName
-        );
+                repositoryFullName);
     }
 
     private PullRequestDetailResponse toDetail(PullRequest pullRequest) {
-        String repositoryFullName = pullRequest.getRepository() != null ? pullRequest.getRepository().getFullName() : null;
-    return new PullRequestDetailResponse(
+        String repositoryFullName = pullRequest.getRepository() != null ? pullRequest.getRepository().getFullName()
+                : null;
+        return new PullRequestDetailResponse(
                 pullRequest.getId(),
                 pullRequest.getNumber(),
                 pullRequest.getTitle(),
@@ -185,8 +187,8 @@ public class PullRequestService {
                 pullRequest.getState(),
                 pullRequest.getMerged(),
                 pullRequest.getHtmlUrl(),
-        toDetailUserSummary(pullRequest.getAuthor()),
-        toDetailUserSummary(pullRequest.getMergedBy()),
+                toDetailUserSummary(pullRequest.getAuthor()),
+                toDetailUserSummary(pullRequest.getMergedBy()),
                 pullRequest.getAdditions(),
                 pullRequest.getDeletions(),
                 pullRequest.getChangedFiles(),
@@ -194,8 +196,7 @@ public class PullRequestService {
                 pullRequest.getUpdatedAt(),
                 pullRequest.getMergedAt(),
                 pullRequest.getClosedAt(),
-                repositoryFullName
-        );
+                repositoryFullName);
     }
 
     private PullRequestFileResponse toFileResponse(PullRequestFile file) {
@@ -206,8 +207,7 @@ public class PullRequestService {
                 file.getAdditions(),
                 file.getDeletions(),
                 file.getChanges(),
-                file.getRawBlobUrl()
-        );
+                file.getRawBlobUrl());
     }
 
     private PullRequestFeedResponse.Item toFeedItem(PullRequest pullRequest) {
@@ -218,10 +218,10 @@ public class PullRequestService {
                     author.getId(),
                     author.getGithubId(),
                     author.getLogin(),
-                    author.getAvatarUrl()
-            );
+                    author.getAvatarUrl());
         }
-        String repositoryFullName = pullRequest.getRepository() != null ? pullRequest.getRepository().getFullName() : null;
+        String repositoryFullName = pullRequest.getRepository() != null ? pullRequest.getRepository().getFullName()
+                : null;
         return new PullRequestFeedResponse.Item(
                 pullRequest.getId(),
                 pullRequest.getNumber(),
@@ -231,8 +231,7 @@ public class PullRequestService {
                 user,
                 pullRequest.getCreatedAt(),
                 pullRequest.getUpdatedAt(),
-                pullRequest.getHtmlUrl()
-        );
+                pullRequest.getHtmlUrl());
     }
 
     private PullRequestListItemResponse.UserSummary toListUserSummary(User author) {
@@ -243,8 +242,7 @@ public class PullRequestService {
                 author.getId(),
                 author.getGithubId(),
                 author.getLogin(),
-                author.getAvatarUrl()
-        );
+                author.getAvatarUrl());
     }
 
     private PullRequestDetailResponse.UserSummary toDetailUserSummary(User author) {
@@ -255,7 +253,6 @@ public class PullRequestService {
                 author.getId(),
                 author.getGithubId(),
                 author.getLogin(),
-                author.getAvatarUrl()
-        );
+                author.getAvatarUrl());
     }
 }
