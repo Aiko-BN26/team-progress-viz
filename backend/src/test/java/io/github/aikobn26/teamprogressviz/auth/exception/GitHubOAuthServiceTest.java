@@ -51,7 +51,7 @@ class GitHubOAuthServiceTest {
         var params = UriComponentsBuilder.fromUriString(url).build().getQueryParams();
         assertThat(params.getFirst("client_id")).isEqualTo("client-id");
         assertThat(params.getFirst("redirect_uri")).isEqualTo("https://app.example.com/auth/callback");
-        assertThat(params.getFirst("scope")).isEqualTo("read:user%20user:email"); 
+    assertThat(params.getFirst("scope")).isEqualTo("read:user%20user:email%20read:org%20repo");
         assertThat(params.getFirst("state")).isEqualTo(state);
     }
 
@@ -63,8 +63,10 @@ class GitHubOAuthServiceTest {
 
         assertThat(user)
                 .isEqualTo(new AuthenticatedUser(1L, "octocat", "Octo Cat", "https://avatars.com/octocat"));
-        assertThat(session.getAttribute("AUTHENTICATED_USER"))
+    assertThat(session.getAttribute("AUTHENTICATED_USER"))
                 .isEqualTo(new AuthenticatedUser(1L, "octocat", "Octo Cat", "https://avatars.com/octocat"));
+    assertThat(session.getAttribute(GitHubOAuthService.SESSION_ATTRIBUTE_ACCESS_TOKEN))
+        .isEqualTo("token-123");
         assertThat(session.getMaxInactiveInterval()).isEqualTo(3600);
     }
 
@@ -95,6 +97,25 @@ class GitHubOAuthServiceTest {
         session.setAttribute("AUTHENTICATED_USER", user);
 
         assertThat(service.getAuthenticatedUser(session)).contains(user);
+    }
+
+    @Test
+    void getAccessToken_returnsEmptyWhenNotStored() {
+        assertThat(service.getAccessToken(session)).isEmpty();
+    }
+
+    @Test
+    void getAccessToken_returnsEmptyWhenTokenBlank() {
+        session.setAttribute(GitHubOAuthService.SESSION_ATTRIBUTE_ACCESS_TOKEN, "   ");
+
+        assertThat(service.getAccessToken(session)).isEmpty();
+    }
+
+    @Test
+    void getAccessToken_returnsTokenWhenPresent() {
+        session.setAttribute(GitHubOAuthService.SESSION_ATTRIBUTE_ACCESS_TOKEN, "token-xyz");
+
+        assertThat(service.getAccessToken(session)).contains("token-xyz");
     }
 
     @Test

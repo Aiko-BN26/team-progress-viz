@@ -12,8 +12,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -27,6 +30,9 @@ import io.github.aikobn26.teamprogressviz.feature.auth.controller.AuthController
 import io.github.aikobn26.teamprogressviz.feature.auth.exception.GitHubOAuthException;
 import io.github.aikobn26.teamprogressviz.feature.auth.model.AuthenticatedUser;
 import io.github.aikobn26.teamprogressviz.feature.auth.service.GitHubOAuthService;
+import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
+import io.github.aikobn26.teamprogressviz.feature.user.service.UserOnboardingService;
+import io.github.aikobn26.teamprogressviz.feature.user.service.UserService;
 import io.github.aikobn26.teamprogressviz.shared.properties.FrontendProperties;
 
 @WebMvcTest(AuthController.class)
@@ -43,6 +49,31 @@ class AuthControllerTest {
     @SuppressWarnings("removal")
     @MockBean
     private FrontendProperties frontendProperties;
+
+    @SuppressWarnings("removal")
+    @MockBean
+    private UserService userService;
+
+    @SuppressWarnings("removal")
+    @MockBean
+    private UserOnboardingService userOnboardingService;
+
+    @BeforeEach
+    void setUp() {
+        when(userService.ensureUserExists(any(), any())).thenAnswer(invocation -> {
+            Consumer<User> callback = invocation.getArgument(1);
+            User user = User.builder()
+                    .id(1L)
+                    .githubId(1L)
+                    .login("stub-user")
+                    .build();
+            if (callback != null) {
+                callback.accept(user);
+            }
+            return user;
+        });
+        when(userOnboardingService.onboardUser(any(), anyString())).thenReturn(List.of());
+    }
 
     @Test
     void startGitHubLogin_returnsAuthorizationUrl() throws Exception {

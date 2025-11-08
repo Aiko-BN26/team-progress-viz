@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import io.github.aikobn26.teamprogressviz.feature.auth.controller.AuthControllerExceptionHandler;
 import io.github.aikobn26.teamprogressviz.feature.auth.exception.GitHubOAuthException;
 
+
 class AuthControllerExceptionHandlerTest {
 
     private final AuthControllerExceptionHandler handler = new AuthControllerExceptionHandler();

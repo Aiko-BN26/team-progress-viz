@@ -131,10 +131,13 @@ public class OrganizationService {
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Organization not found on GitHub: " + normalizedLogin));
 
-        Organization organization = resolveOrganization(gitHubOrganization, defaultLinkUrl);
-        Organization savedOrganization = organizationRepository.save(organization);
+    Organization organization = resolveOrganization(gitHubOrganization, defaultLinkUrl);
+    Organization savedOrganization = organizationRepository.save(organization);
 
-        ensureMembership(user, savedOrganization);
+    ensureMembership(user, savedOrganization);
+    List<GitHubOrganizationMember> gitHubMembers = gitHubOrganizationService
+        .listMembers(accessToken, normalizedLogin);
+    syncOrganizationMembers(savedOrganization, gitHubMembers);
 
         return new OrganizationSyncResult(savedOrganization, gitHubOrganization, 0);
     }
