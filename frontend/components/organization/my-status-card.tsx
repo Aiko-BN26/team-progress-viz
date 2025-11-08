@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CalendarClock, PenSquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -28,52 +29,128 @@ const STATUS_OPTIONS = [
 ];
 
 type Props = {
+  organizationId: string;
   timezone: string;
   personalStatus: PersonalStatus;
 };
 
-export function MyStatusCard({ timezone, personalStatus }: Props) {
-  const shouldAutoOpen = !personalStatus.submitted;
-  const [open, setOpen] = useState(shouldAutoOpen);
+type ApiPersonalStatus = {
+  submitted?: boolean;
+  status?: string | null;
+  statusMessage?: string | null;
+  lastSubmittedAt?: string | null;
+  commitCount?: number | null;
+  capacityHours?: number | null;
+  streakDays?: number | null;
+  latestPrUrl?: string | null;
+};
+
+type ApiStatusUpdateResponse = {
+  personalStatus?: ApiPersonalStatus | null;
+  summary?: {
+    activeToday?: number | null;
+    pendingStatusCount?: number | null;
+  } | null;
+};
+
+export function MyStatusCard({ organizationId, timezone, personalStatus }: Props) {
+  const router = useRouter();
+  const [currentStatus, setCurrentStatus] = useState(personalStatus);
+  const [open, setOpen] = useState(!personalStatus.submitted);
   const [formStatus, setFormStatus] = useState<MemberStatusState>(
     (personalStatus.status ?? "集中") as MemberStatusState,
   );
   const [formMessage, setFormMessage] = useState(personalStatus.statusMessage ?? "");
-  const [formCapacity, setFormCapacity] = useState(
-    personalStatus.capacityHours ?? 3,
-  );
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [formCapacity, setFormCapacity] = useState(personalStatus.capacityHours ?? 3);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setCurrentStatus(personalStatus);
+  }, [personalStatus]);
+
+  useEffect(() => {
+    setFormStatus((currentStatus.status ?? "集中") as MemberStatusState);
+    setFormMessage(currentStatus.statusMessage ?? "");
+    setFormCapacity(currentStatus.capacityHours ?? 3);
+  }, [currentStatus]);
 
   const formattedLastSubmitted = useMemo(() => {
-    if (!personalStatus.lastSubmittedAt) return "--";
+    if (!currentStatus.lastSubmittedAt) return "--";
     return new Intl.DateTimeFormat("ja-JP", {
       dateStyle: "medium",
       timeStyle: "short",
       timeZone: timezone,
-    }).format(new Date(personalStatus.lastSubmittedAt));
-  }, [personalStatus.lastSubmittedAt, timezone]);
+    }).format(new Date(currentStatus.lastSubmittedAt));
+  }, [currentStatus.lastSubmittedAt, timezone]);
 
-  const showIncomplete = !personalStatus.submitted;
-  const displayStatus = personalStatus.submitted
-    ? personalStatus.status ?? "集中"
+  const showIncomplete = !currentStatus.submitted;
+  const displayStatus = currentStatus.submitted
+    ? currentStatus.status ?? "集中"
     : formStatus;
-  const displayMessage = personalStatus.submitted
-    ? personalStatus.statusMessage ?? "コメントなし"
-    : formMessage || personalStatus.statusMessage || "コメントなし";
-  const displayCapacity = personalStatus.submitted
-    ? personalStatus.capacityHours ?? "--"
-    : formCapacity ?? personalStatus.capacityHours ?? "--";
+  const displayMessage = currentStatus.submitted
+    ? currentStatus.statusMessage ?? "コメントなし"
+    : formMessage || currentStatus.statusMessage || "コメントなし";
+  const displayCapacity = currentStatus.submitted
+    ? currentStatus.capacityHours ?? "--"
+    : formCapacity ?? currentStatus.capacityHours ?? "--";
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setSavedAt(
-      new Intl.DateTimeFormat("ja-JP", {
-        dateStyle: "medium",
-        timeStyle: "short",
-        timeZone: timezone,
-      }).format(new Date()),
-    );
-    setOpen(false);
+    setSubmitError(null);
+    setIsSubmitting(true);
+    try {
+      const availableMinutes =
+        typeof formCapacity === "number" && !Number.isNaN(formCapacity)
+          ? Math.max(Math.round(formCapacity * 60), 0)
+          : null;
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/organizations/${organizationId}/statuses`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            status: formStatus,
+            statusMessage: formMessage,
+            capacityHours: formCapacity,
+            availableMinutes,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to submit status");
+      }
+
+      const payload = (await response.json()) as ApiStatusUpdateResponse;
+      const nowIso = new Date().toISOString();
+
+      if (payload.personalStatus) {
+        setCurrentStatus(mapApiPersonalStatus(payload.personalStatus));
+      } else {
+        setCurrentStatus((prev) => ({
+          ...prev,
+          submitted: true,
+          status: formStatus,
+          statusMessage: formMessage || null,
+          lastSubmittedAt: nowIso,
+          capacityHours: formCapacity ?? prev.capacityHours ?? null,
+        }));
+      }
+      setOpen(false);
+      router.refresh();
+    } catch (error) {
+      console.error("[MyStatusCard] failed to submit status", error);
+      setSubmitError("保存に失敗しました。時間をおいて再度お試しください。");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -92,7 +169,7 @@ export function MyStatusCard({ timezone, personalStatus }: Props) {
               <DialogHeader>
                 <DialogTitle>今日の作業予定を共有</DialogTitle>
                 <DialogDescription>
-                  入力内容はまだモック状態で保存されません。操作感を確認できます。
+                  入力内容はリアルタイムで保存され、チームと共有されます。
                 </DialogDescription>
               </DialogHeader>
               <form className="space-y-4" onSubmit={handleSubmit}>
@@ -104,6 +181,7 @@ export function MyStatusCard({ timezone, personalStatus }: Props) {
                       setFormStatus(event.target.value as MemberStatusState)
                     }
                     className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    disabled={isSubmitting}
                   >
                     {STATUS_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -120,6 +198,7 @@ export function MyStatusCard({ timezone, personalStatus }: Props) {
                     rows={3}
                     className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     placeholder="今日の進め方やブロッカーを共有しましょう"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -134,13 +213,24 @@ export function MyStatusCard({ timezone, personalStatus }: Props) {
                       setFormCapacity(Number.isNaN(nextValue) ? 0 : nextValue);
                     }}
                     className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    disabled={isSubmitting}
                   />
                 </div>
+                {submitError && (
+                  <p className="text-sm text-destructive">{submitError}</p>
+                )}
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setOpen(false)}
+                    disabled={isSubmitting}
+                  >
                     キャンセル
                   </Button>
-                  <Button type="submit">モック保存</Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? "保存中..." : "保存"}
+                  </Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -166,26 +256,40 @@ export function MyStatusCard({ timezone, personalStatus }: Props) {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <span>コミット {personalStatus.commitCount}</span>
-          <span>稼働 {personalStatus.capacityHours ?? "--"}h</span>
-          <span>連続 {personalStatus.streakDays}日</span>
-          {personalStatus.latestPrUrl && (
+          <span>コミット {currentStatus.commitCount}</span>
+          <span>稼働 {currentStatus.capacityHours ?? "--"}h</span>
+          <span>連続 {currentStatus.streakDays}日</span>
+          {currentStatus.latestPrUrl ? (
             <Link
-              href={personalStatus.latestPrUrl}
+              href={currentStatus.latestPrUrl}
               className="text-primary underline-offset-4 hover:underline"
             >
               最新PRを開く
             </Link>
+          ) : (
+            <span>PRなし</span>
           )}
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <CalendarClock className="h-4 w-4" />
           最終入力: {formattedLastSubmitted}
         </div>
-        {savedAt && (
-          <p className="text-xs text-emerald-600">モック保存完了: {savedAt}</p>
-        )}
       </CardContent>
     </Card>
   );
 }
+
+function mapApiPersonalStatus(api: ApiPersonalStatus): PersonalStatus {
+  console.log("api.status:", api.status);
+  return {
+    submitted: Boolean(api.submitted),
+    status: api.status as MemberStatusState | null,
+    statusMessage: api.statusMessage ?? null,
+    lastSubmittedAt: api.lastSubmittedAt ?? null,
+    commitCount: api.commitCount ?? 0,
+    capacityHours: api.capacityHours ?? null,
+    streakDays: api.streakDays ?? 0,
+    latestPrUrl: api.latestPrUrl ?? null,
+  };
+}
+

@@ -198,7 +198,11 @@ export default async function OrganizationDetailPage({ params }: PageProps) {
 
       <section className="grid gap-6 lg:grid-cols-[2fr,1fr]">
         <MemberStatusBoard timezone={detail.timezone} members={members} />
-        <MyStatusCard timezone={detail.timezone} personalStatus={personalStatus} />
+        <MyStatusCard
+          organizationId={detail.id}
+          timezone={detail.timezone}
+          personalStatus={personalStatus}
+        />
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
