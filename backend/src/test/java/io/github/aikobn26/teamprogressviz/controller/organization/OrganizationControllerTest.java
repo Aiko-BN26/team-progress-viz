@@ -33,6 +33,7 @@ import io.github.aikobn26.teamprogressviz.feature.job.service.JobService;
 import io.github.aikobn26.teamprogressviz.feature.organization.controller.OrganizationController;
 import io.github.aikobn26.teamprogressviz.feature.organization.entity.Organization;
 import io.github.aikobn26.teamprogressviz.feature.organization.service.OrganizationService;
+import io.github.aikobn26.teamprogressviz.feature.github.service.GitHubOrganizationService;
 import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
 import io.github.aikobn26.teamprogressviz.feature.user.service.UserOnboardingService;
 import io.github.aikobn26.teamprogressviz.feature.user.service.UserService;
@@ -57,6 +58,9 @@ class OrganizationControllerTest {
 
     @Autowired
     private JobService jobService;
+
+    @Autowired
+    private GitHubOrganizationService gitHubOrganizationService;
 
     @Test
     void list_returnsUnauthorizedWhenNotAuthenticated() throws Exception {
@@ -106,6 +110,8 @@ class OrganizationControllerTest {
         var authUser = new AuthenticatedUser(1_000L, "octocat", "Octo Cat", "https://avatar");
         when(gitHubOAuthService.getAuthenticatedUser(any())).thenReturn(Optional.of(authUser));
         when(gitHubOAuthService.getAccessToken(any())).thenReturn(Optional.of("token"));
+    when(gitHubOrganizationService.listOrganizations("token"))
+        .thenReturn(List.of(new GitHubOrganization(3_300L, "test-org", "Test Org", null, null, "https://github.com/test-org")));
 
         var user = User.builder().id(10L).githubId(1_000L).login("octocat").build();
         when(userService.ensureUserExists(authUser)).thenReturn(user);
@@ -226,6 +232,11 @@ class OrganizationControllerTest {
         @Bean
         JobService jobService() {
             return Mockito.mock(JobService.class);
+        }
+
+        @Bean
+        GitHubOrganizationService gitHubOrganizationService() {
+            return Mockito.mock(GitHubOrganizationService.class);
         }
     }
 }

@@ -17,15 +17,20 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubOrganization;
 import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubOrganizationMember;
 import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubRepository;
+import io.github.aikobn26.teamprogressviz.feature.github.repository.WebhookEventRepository;
 import io.github.aikobn26.teamprogressviz.feature.github.service.GitHubOrganizationService;
 import io.github.aikobn26.teamprogressviz.feature.organization.entity.Comment;
 import io.github.aikobn26.teamprogressviz.feature.organization.entity.Organization;
 import io.github.aikobn26.teamprogressviz.feature.organization.entity.UserOrganization;
+import io.github.aikobn26.teamprogressviz.feature.organization.repository.ActivityDailyRepository;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.CommentRepository;
+import io.github.aikobn26.teamprogressviz.feature.organization.repository.DailyStatusRepository;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.OrganizationRepository;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.RepositorySyncStatusRepository;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.UserOrganizationRepository;
@@ -34,7 +39,9 @@ import io.github.aikobn26.teamprogressviz.feature.organization.service.Repositor
 import io.github.aikobn26.teamprogressviz.feature.repository.entity.GitCommit;
 import io.github.aikobn26.teamprogressviz.feature.repository.entity.PullRequest;
 import io.github.aikobn26.teamprogressviz.feature.repository.entity.Repository;
+import io.github.aikobn26.teamprogressviz.feature.repository.repository.CommitFileRepository;
 import io.github.aikobn26.teamprogressviz.feature.repository.repository.GitCommitRepository;
+import io.github.aikobn26.teamprogressviz.feature.repository.repository.PullRequestFileRepository;
 import io.github.aikobn26.teamprogressviz.feature.repository.repository.PullRequestRepository;
 import io.github.aikobn26.teamprogressviz.feature.repository.repository.RepositoryRepository;
 import io.github.aikobn26.teamprogressviz.feature.repository.service.RepositoryActivitySyncService;
@@ -82,21 +89,55 @@ class OrganizationServiceTest {
     @Autowired
     private CommentRepository commentRepository;
 
+    @Autowired
+    private CommitFileRepository commitFileRepository;
+
+    @Autowired
+    private PullRequestFileRepository pullRequestFileRepository;
+
+    @Autowired
+    private ActivityDailyRepository activityDailyRepository;
+
+    @Autowired
+    private DailyStatusRepository dailyStatusRepository;
+
+    @Autowired
+    private WebhookEventRepository webhookEventRepository;
+
+        @Autowired
+        private PlatformTransactionManager transactionManager;
+
+        private TransactionTemplate transactionTemplate;
+
     private User primaryUser;
 
     @BeforeEach
     void setUp() {
-                Mockito.reset(gitHubOrganizationService);
-                Mockito.reset(repositoryActivitySyncService);
-                primaryUser = userRepository.save(User.builder()
-                                .githubId(1_000L)
-                                .login("tester")
-                                .name("Tester")
-                                .avatarUrl("https://avatar")
-                                .build());
-    }
+        // To avoid foreign key constraint violations, delete in the correct order
+        commitFileRepository.deleteAllInBatch();
+        pullRequestFileRepository.deleteAllInBatch();
+        commentRepository.deleteAllInBatch();
+        activityDailyRepository.deleteAllInBatch();
+        dailyStatusRepository.deleteAllInBatch();
+        gitCommitRepository.deleteAllInBatch();
+        pullRequestRepository.deleteAllInBatch();
+        repositorySyncStatusRepository.deleteAllInBatch();
+        repositoryRepository.deleteAllInBatch();
+        userOrganizationRepository.deleteAllInBatch();
+        organizationRepository.deleteAllInBatch();
+        userRepository.deleteAllInBatch();
+        webhookEventRepository.deleteAllInBatch();
 
-    @Test
+        Mockito.reset(gitHubOrganizationService);
+        Mockito.reset(repositoryActivitySyncService);
+
+        primaryUser = userRepository.saveAndFlush(User.builder()
+                .githubId(1_000L)
+                .login("tester")
+                .name("Tester")
+                .avatarUrl("https://avatar")
+                .build());
+    }    @Test
     void listOrganizations_filtersDeletedMembershipsAndOrganizations() {
         Organization active = organizationRepository.save(Organization.builder()
                 .githubId(101L)

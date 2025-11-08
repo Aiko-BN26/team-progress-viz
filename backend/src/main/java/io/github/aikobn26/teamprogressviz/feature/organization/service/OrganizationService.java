@@ -7,12 +7,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubOrganization;
@@ -44,7 +48,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(readOnly = true, propagation = Propagation.SUPPORTS)
 public class OrganizationService {
 
     private final OrganizationRepository organizationRepository;
@@ -58,6 +62,7 @@ public class OrganizationService {
     private final PullRequestRepository pullRequestRepository;
     private final CommentRepository commentRepository;
     private final KeyLockManager keyLockManager;
+    private final PlatformTransactionManager transactionManager;
 
     private static final int RECENT_PULL_REQUEST_LIMIT = 10;
     private static final int RECENT_COMMIT_LIMIT = 20;
@@ -131,15 +136,16 @@ public class OrganizationService {
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Organization not found on GitHub: " + normalizedLogin));
 
-    Organization organization = resolveOrganization(gitHubOrganization, defaultLinkUrl);
-    Organization savedOrganization = organizationRepository.save(organization);
+        List<GitHubOrganizationMember> gitHubMembers = gitHubOrganizationService
+                .listMembers(accessToken, normalizedLogin);
 
-    ensureMembership(user, savedOrganization);
-    List<GitHubOrganizationMember> gitHubMembers = gitHubOrganizationService
-        .listMembers(accessToken, normalizedLogin);
-    syncOrganizationMembers(savedOrganization, gitHubMembers);
-
-        return new OrganizationSyncResult(savedOrganization, gitHubOrganization, 0);
+        return executeInTransaction(() -> {
+            Organization organization = resolveOrganization(gitHubOrganization, defaultLinkUrl);
+            Organization savedOrganization = organizationRepository.save(organization);
+            ensureMembership(user, savedOrganization);
+            syncOrganizationMembers(savedOrganization, gitHubMembers);
+            return new OrganizationSyncResult(savedOrganization, gitHubOrganization, 0);
+        });
     }
 
     public EnsureOrganizationResult ensureOrganizationExists(String login, String defaultLinkUrl, String accessToken) {
@@ -159,10 +165,12 @@ public class OrganizationService {
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Organization not found on GitHub: " + normalizedLogin));
 
-            Organization organization = resolveOrganization(gitHubOrganization, defaultLinkUrl);
-            boolean created = organization.getId() == null;
-            Organization saved = organizationRepository.save(organization);
-            return new EnsureOrganizationResult(saved, gitHubOrganization, created);
+            return executeInTransaction(() -> {
+                Organization organization = resolveOrganization(gitHubOrganization, defaultLinkUrl);
+                boolean created = organization.getId() == null;
+                Organization saved = organizationRepository.save(organization);
+                return new EnsureOrganizationResult(saved, gitHubOrganization, created);
+            });
         });
     }
 
@@ -174,28 +182,46 @@ public class OrganizationService {
             throw new ValidationException("GitHub access token is required");
         }
 
-        Organization organization = organizationRepository.findByIdAndDeletedAtIsNull(organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+        OrganizationSnapshot organizationSnapshot = executeInTransaction(() -> organizationRepository
+                .findByIdAndDeletedAtIsNull(organizationId)
+                .map(org -> new OrganizationSnapshot(org.getId(), org.getLogin(), org.getDefaultLinkUrl()))
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found")));
+
+        String organizationLogin = organizationSnapshot.login();
+        String defaultLinkUrl = organizationSnapshot.defaultLinkUrl();
 
         GitHubOrganization gitHubOrganization = gitHubOrganizationService
-                .getOrganization(accessToken, organization.getLogin())
+                .getOrganization(accessToken, organizationLogin)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Organization not found on GitHub: " + organization.getLogin()));
-
-        updateOrganizationFields(organization, gitHubOrganization, organization.getDefaultLinkUrl());
-        Organization savedOrganization = organizationRepository.save(organization);
+                        "Organization not found on GitHub: " + organizationLogin));
 
         List<GitHubRepository> gitHubRepositories = gitHubOrganizationService
-                .listRepositories(accessToken, savedOrganization.getLogin());
-        int syncedRepositories = syncRepositories(savedOrganization, gitHubRepositories);
+                .listRepositories(accessToken, organizationLogin);
 
         List<GitHubOrganizationMember> gitHubMembers = gitHubOrganizationService
-                .listMembers(accessToken, savedOrganization.getLogin());
-        syncOrganizationMembers(savedOrganization, gitHubMembers);
+                .listMembers(accessToken, organizationLogin);
 
-        repositoryActivitySyncService.synchronizeActivities(savedOrganization, accessToken);
+        OrganizationUpdateResult updateResult = executeInTransaction(() -> {
+            Organization managedOrganization = organizationRepository
+                    .findByIdAndDeletedAtIsNull(organizationSnapshot.id())
+                    .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        return new OrganizationSyncResult(savedOrganization, gitHubOrganization, syncedRepositories);
+            updateOrganizationFields(managedOrganization, gitHubOrganization, defaultLinkUrl);
+            Organization savedOrganization = organizationRepository.save(managedOrganization);
+
+            int syncedRepositories = syncRepositories(savedOrganization, gitHubRepositories);
+            syncOrganizationMembers(savedOrganization, gitHubMembers);
+
+            return new OrganizationUpdateResult(savedOrganization, syncedRepositories);
+        });
+
+        // Run activity sync outside the transaction so pooled connections are released before remote calls.
+        repositoryActivitySyncService.synchronizeActivities(updateResult.organization(), accessToken);
+
+        return new OrganizationSyncResult(
+                updateResult.organization(),
+                gitHubOrganization,
+                updateResult.syncedRepositories());
     }
 
     private Organization resolveOrganization(GitHubOrganization gitHubOrganization, String defaultLinkUrl) {
@@ -515,25 +541,27 @@ public class OrganizationService {
     }
 
     public void deleteOrganization(User user, Long organizationId) {
-        Organization organization = requireOrganizationForDeletion(user, organizationId);
+        executeInTransaction(() -> {
+            Organization organization = requireOrganizationForDeletion(user, organizationId);
 
-        List<UserOrganization> memberships = userOrganizationRepository
-                .findByOrganizationIdAndDeletedAtIsNull(organizationId);
-        List<Repository> repositories = repositoryRepository.findByOrganizationAndDeletedAtIsNull(organization);
+            List<UserOrganization> memberships = userOrganizationRepository
+                    .findByOrganizationIdAndDeletedAtIsNull(organizationId);
+            List<Repository> repositories = repositoryRepository.findByOrganizationAndDeletedAtIsNull(organization);
 
-        OffsetDateTime now = OffsetDateTime.now();
-        organization.setDeletedAt(now);
-        organizationRepository.save(organization);
+            OffsetDateTime now = OffsetDateTime.now();
+            organization.setDeletedAt(now);
+            organizationRepository.save(organization);
 
-        memberships.forEach(member -> {
-            member.setDeletedAt(now);
-            userOrganizationRepository.save(member);
-        });
+            memberships.forEach(member -> {
+                member.setDeletedAt(now);
+                userOrganizationRepository.save(member);
+            });
 
-        repositories.forEach(repository -> {
-            repository.setDeletedAt(now);
-            repositoryRepository.save(repository);
-            repositorySyncStatusService.markDeleted(repository);
+            repositories.forEach(repository -> {
+                repository.setDeletedAt(now);
+                repositoryRepository.save(repository);
+                repositorySyncStatusService.markDeleted(repository);
+            });
         });
     }
 
@@ -626,6 +654,8 @@ public class OrganizationService {
         return organization.getLogin() + "/" + repository.name();
     }
 
+
+
     public record OrganizationSyncResult(Organization organization,
             GitHubOrganization gitHubOrganization,
             int syncedRepositories) {
@@ -670,6 +700,22 @@ public class OrganizationService {
     public record PullRequestSummary(long openCount,
             long closedCount,
             long mergedCount) {
+    }
+
+    private record OrganizationSnapshot(Long id, String login, String defaultLinkUrl) {
+    }
+
+    private record OrganizationUpdateResult(Organization organization, int syncedRepositories) {
+    }
+
+    private void executeInTransaction(Runnable action) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.executeWithoutResult(status -> action.run());
+    }
+
+    private <T> T executeInTransaction(Supplier<T> action) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        return template.execute(status -> action.get());
     }
 
     public record PullRequestDetail(Long id,

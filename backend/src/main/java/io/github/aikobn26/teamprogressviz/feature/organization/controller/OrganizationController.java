@@ -2,6 +2,7 @@ package io.github.aikobn26.teamprogressviz.feature.organization.controller;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.github.aikobn26.teamprogressviz.feature.auth.service.GitHubOAuthService;
+import io.github.aikobn26.teamprogressviz.feature.github.service.GitHubOrganizationService;
 import io.github.aikobn26.teamprogressviz.feature.job.dto.response.JobSubmissionResponse;
 import io.github.aikobn26.teamprogressviz.feature.job.service.JobService;
 import io.github.aikobn26.teamprogressviz.feature.organization.dto.request.OrganizationRegistrationRequest;
@@ -41,6 +43,7 @@ public class OrganizationController {
     private final OrganizationService organizationService;
     private final JobService jobService;
     private final UserOnboardingService userOnboardingService;
+    private final GitHubOrganizationService gitHubOrganizationService;
 
     @GetMapping
     public ResponseEntity<List<OrganizationSummaryResponse>> list(HttpSession session) {
@@ -71,6 +74,17 @@ public class OrganizationController {
         var accessToken = gitHubOAuthService.getAccessToken(session);
         if (accessToken.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String normalizedLogin = request.login().trim().toLowerCase(Locale.ROOT);
+        boolean accessible = gitHubOrganizationService.listOrganizations(accessToken.get()).stream()
+                .filter(Objects::nonNull)
+                .map(org -> org.login())
+                .filter(login -> login != null && !login.isBlank())
+                .map(login -> login.trim().toLowerCase(Locale.ROOT))
+                .anyMatch(normalizedLogin::equals);
+        if (!accessible) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
         }
 
         var user = userService.ensureUserExists(authenticated.get());
