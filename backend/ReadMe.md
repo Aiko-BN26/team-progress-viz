@@ -34,6 +34,7 @@
 
 ### POST /api/auth/logout
 - **説明**: セッションを破棄。
+- **リクエストボディ**: なし
 - **レスポンス**: `204 No Content`
 
 ---
@@ -164,6 +165,7 @@
     "defaultLinkUrl": "https://example.com/board"
   }
   ```
+- **備考**: `login` は必須、`defaultLinkUrl` は任意 (最大 2048 文字)。
 - **レスポンス (202)** (`OrganizationRegistrationResponse`)
   ```json
   {
@@ -180,6 +182,7 @@
 
 ### POST /api/organizations/ensure-sync
 - **説明**: セッションに紐づくユーザーがアクセス可能な組織の同期ジョブをまとめて起動。
+- **リクエストボディ**: なし
 - **レスポンス (202)** (`OrganizationEnsureSyncResponse`)
   ```json
   {
@@ -195,6 +198,7 @@
 
 ### POST /api/organizations/{organizationId}/sync
 - **説明**: 指定組織の再同期ジョブを登録。
+- **リクエストボディ**: なし
 - **レスポンス (202)** (`JobSubmissionResponse`)
   ```json
   {
@@ -427,6 +431,16 @@
 
 ### POST /api/organizations/{organizationId}/comments
 - **説明**: コメントを作成 (`CommentCreateRequest`)。成功時 `201 Created` と `Location: /api/organizations/{organizationId}/comments/{commentId}`。
+- **リクエストボディ**
+  ```json
+  {
+    "targetType": "pull_request",
+    "targetId": 70,
+    "parentCommentId": 42,
+    "content": "レビューお願いします"
+  }
+  ```
+- **備考**: `targetType` と `content` は必須、`targetId` と `parentCommentId` は対象に応じて任意。`content` は 1〜4000 文字。
 - **レスポンス (201)** (`CommentCreateResponse`)
   ```json
   {
@@ -462,6 +476,17 @@
 
 ### POST /api/organizations/{organizationId}/statuses
 - **説明**: ステータス登録/更新 (`StatusUpdateRequest`)。
+- **リクエストボディ**
+  ```json
+  {
+    "status": "working",
+    "statusMessage": "レビュー対応",
+    "capacityHours": 6,
+    "availableMinutes": 240,
+    "date": "2024-09-13"
+  }
+  ```
+- **備考**: `status` は必須。稼働時間は `availableMinutes` (分) または `capacityHours` (時間) を 0 以上で指定 (両方指定可)。`date` は `YYYY-MM-DD` 形式で省略時は当日、`statusMessage` は最大 2000 文字。
 - **レスポンス (200)** (`StatusUpdateResponse`)
   ```json
   {
@@ -552,6 +577,7 @@
 
 ### POST /api/repositories/{repositoryId}/pulls/sync
 - **説明**: 指定リポジトリの PR 同期ジョブを登録。
+- **リクエストボディ**: なし
 - **レスポンス (202)**
   ```json
   {
@@ -720,7 +746,7 @@
 ### POST /api/webhooks/github
 - **説明**: GitHub Webhook イベントを受信 (署名検証は別途実装想定)。
 - **ヘッダー**: `X-GitHub-Event`, `X-GitHub-Delivery`, `X-Hub-Signature-256` (任意)
-- **リクエストボディ**: GitHub のペイロード文字列
+- **リクエストボディ**: GitHub から送信される Webhook ペイロード (JSON 文字列をそのまま受信)。
 - **レスポンス (202)**
   ```json
   {
