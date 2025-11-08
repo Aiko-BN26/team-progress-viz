@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { redirect } from "next/navigation";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (!baseUrl) {
-    throw new Error("NEXT_PUBLIC_API_URL is not defined");
-  }
+if (!baseUrl) {
+  throw new Error("NEXT_PUBLIC_API_URL is not defined");
+}
 
 export default function Home() {
   const [isLogin, setIsLogin] = useState<boolean | null>(null);
