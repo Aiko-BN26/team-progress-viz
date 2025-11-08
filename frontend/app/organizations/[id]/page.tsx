@@ -6,11 +6,9 @@ import {
   ArrowUpRight,
   CalendarDays,
   Loader2,
-  RefreshCcw,
   Users,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -20,10 +18,9 @@ import {
 } from "@/components/ui/card";
 
 import { ActivityChart } from "@/components/organization/activity-chart";
-import { CopyShareButton } from "@/components/organization/copy-share-button";
 import { MemberStatusBoard } from "@/components/organization/member-status-board";
 import { MyStatusCard } from "@/components/organization/my-status-card";
-import { fetchOrganizationViewData } from "./mock-data";
+import { loadOrganizationViewData } from "./data";
 import type { CommitActivity, OrganizationViewData } from "./types";
 
 type PageProps = {
@@ -81,9 +78,7 @@ const RecentCommitsCard = ({
   <Card className="h-full">
     <CardHeader>
       <CardTitle className="text-base">最近のコミット/PR</CardTitle>
-      <CardDescription>
-        GitHubの最新活動から概要のみを表示しています（モック）
-      </CardDescription>
+      <CardDescription>GitHubの最新活動から概要のみを表示しています</CardDescription>
     </CardHeader>
     <CardContent>
       {commits.length === 0 ? (
@@ -117,7 +112,7 @@ const RecentCommitsCard = ({
 );
 
 async function getPageData(organizationId: string): Promise<OrganizationViewData | null> {
-  return fetchOrganizationViewData(organizationId);
+  return loadOrganizationViewData(organizationId);
 }
 
 export default async function OrganizationDetailPage({ params }: PageProps) {
@@ -161,13 +156,6 @@ export default async function OrganizationDetailPage({ params }: PageProps) {
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <CopyShareButton url={detail.publicShareUrl} />
-          <Button variant="outline" size="sm" type="button">
-            <RefreshCcw className="h-4 w-4" />
-            再読み込み(モック)
-          </Button>
-        </div>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -200,7 +188,11 @@ export default async function OrganizationDetailPage({ params }: PageProps) {
 
       <section className="grid gap-6 lg:grid-cols-[2fr,1fr]">
         <MemberStatusBoard timezone={detail.timezone} members={members} />
-        <MyStatusCard timezone={detail.timezone} personalStatus={personalStatus} />
+        <MyStatusCard
+          organizationId={detail.id}
+          timezone={detail.timezone}
+          personalStatus={personalStatus}
+        />
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">

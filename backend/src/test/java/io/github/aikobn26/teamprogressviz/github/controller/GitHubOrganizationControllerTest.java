@@ -19,11 +19,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import io.github.aikobn26.teamprogressviz.auth.service.GitHubOAuthService;
-import io.github.aikobn26.teamprogressviz.github.model.GitHubOrganization;
-import io.github.aikobn26.teamprogressviz.github.model.GitHubOrganizationMember;
-import io.github.aikobn26.teamprogressviz.github.model.GitHubRepository;
-import io.github.aikobn26.teamprogressviz.github.service.GitHubOrganizationService;
+import io.github.aikobn26.teamprogressviz.feature.auth.service.GitHubOAuthService;
+import io.github.aikobn26.teamprogressviz.feature.github.controller.GitHubOrganizationController;
+import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubOrganization;
+import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubOrganizationMember;
+import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubRepository;
+import io.github.aikobn26.teamprogressviz.feature.github.service.GitHubOrganizationService;
 import io.github.aikobn26.teamprogressviz.shared.properties.FrontendProperties;
 
 @WebMvcTest(GitHubOrganizationController.class)

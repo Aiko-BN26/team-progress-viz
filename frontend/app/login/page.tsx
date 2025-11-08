@@ -3,13 +3,18 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+if (!baseUrl) {
+  throw new Error("NEXT_PUBLIC_API_URL is not defined");
+}
+
 export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
     const checkIsLogin = async () => {
       try {
-        const res = await fetch("https://team-progress-viz.onrender.com/api/auth/github/login", {
+        const res = await fetch(`${baseUrl}/api/auth/github/login`, {
           credentials: "include",
         });
         const data = await res.json();
