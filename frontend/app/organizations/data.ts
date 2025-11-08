@@ -12,8 +12,25 @@ type ApiOrganizationSummary = {
 };
 
 type ApiOrganizationDetailResponse = {
+  organization?: {
+    id: number;
+    login: string;
+    name?: string | null;
+    description?: string | null;
+    avatarUrl?: string | null;
+    htmlUrl?: string | null;
+    defaultLinkUrl?: string | null;
+  };
   members?: Array<{
     userId: number | null;
+  }>;
+  activitySummaryLast7Days?: {
+    activeMembers?: number | null;
+    commitCount?: number | null;
+  };
+  recentCommits?: Array<{
+    committedAt?: string | null;
+    pushedAt?: string | null;
   }>;
 };
 
@@ -90,19 +107,22 @@ function mapToListItem(
   statuses: StatusListItemResponse[],
   fallback?: OrganizationListItem,
 ): OrganizationListItem {
-  const id = summary.id?.toString() ?? fallback?.id ?? summary.login;
-  const name = summary.name ?? summary.login ?? fallback?.name ?? "Organization";
-  const description = summary.description ?? fallback?.description ?? "";
-  const avatarUrl = summary.avatarUrl ?? fallback?.avatarUrl ?? "";
+  const organization = detail?.organization;
+  const id = organization?.id?.toString() ?? summary.id?.toString() ?? fallback?.id ?? summary.login;
+  const name =
+    organization?.name ?? summary.name ?? summary.login ?? fallback?.name ?? "Organization";
+  const description =
+    organization?.description ?? summary.description ?? fallback?.description ?? "";
+  const avatarUrl = organization?.avatarUrl ?? summary.avatarUrl ?? fallback?.avatarUrl ?? "";
 
   const memberCount = detail?.members?.length ?? fallback?.memberCount ?? 0;
-  const activeToday = statuses.length > 0 ? statuses.length : fallback?.activeToday ?? 0;
-  const pendingStatusCount = memberCount > 0
-    ? Math.max(memberCount - activeToday, 0)
-    : fallback?.pendingStatusCount ?? 0;
+  const activeToday = statuses.length;
+  const pendingStatusCount = memberCount > 0 ? Math.max(memberCount - activeToday, 0) : 0;
 
   const lastActivity =
-    extractLatestStatusTimestamp(statuses) ?? fallback?.lastActivity ?? new Date().toISOString();
+    extractLatestTimestampFromData(statuses, detail?.recentCommits) ??
+    fallback?.lastActivity ??
+    new Date().toISOString();
 
   return {
     id,
@@ -124,4 +144,20 @@ function extractLatestStatusTimestamp(statuses: StatusListItemResponse[]) {
     return null;
   }
   return timestamps.sort().at(-1) ?? null;
+}
+
+function extractLatestTimestampFromData(
+  statuses: StatusListItemResponse[],
+  recentCommits?: ApiOrganizationDetailResponse["recentCommits"],
+) {
+  const statusTimestamp = extractLatestStatusTimestamp(statuses);
+  const commitTimestamps = recentCommits
+    ?.map((commit) => commit.committedAt ?? commit.pushedAt ?? null)
+    .filter((value): value is string => Boolean(value));
+  const latestCommit = commitTimestamps?.sort().at(-1) ?? null;
+
+  if (statusTimestamp && latestCommit) {
+    return statusTimestamp > latestCommit ? statusTimestamp : latestCommit;
+  }
+  return statusTimestamp ?? latestCommit ?? null;
 }

@@ -1,10 +1,10 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-const API_BASE_URL =
-  process.env.API_BASE_URL ??
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost:8080";
+const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+if (!baseUrl) {
+  throw new Error("NEXT_PUBLIC_API_URL is not defined");
+}
 
 const PROTECTED_PREFIXES = ["/organizations", "/enroll-organizations"];
 const PUBLIC_PATH_PREFIXES = ["/login", "/api", "/_next", "/static"];
@@ -19,7 +19,7 @@ export default async function proxy(request: NextRequest) {
   }
 
   try {
-    const sessionResponse = await fetch(`${API_BASE_URL}/api/auth/session`, {
+    const sessionResponse = await fetch(`${baseUrl}/api/auth/session`, {
       method: "GET",
       headers: buildHeaders(request),
       cache: "no-store",

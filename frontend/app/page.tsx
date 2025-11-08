@@ -1,7 +1,12 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from "react";
 import { redirect } from "next/navigation";
+
+const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (!baseUrl) {
+    throw new Error("NEXT_PUBLIC_API_URL is not defined");
+  }
 
 export default function Home() {
   const [isLogin, setIsLogin] = useState<boolean | null>(null);
@@ -9,7 +14,7 @@ export default function Home() {
   useEffect(() => {
     const checkIsLogin = async () => {
     try{
-      const res = await fetch("http://localhost:8080/api/auth/session", {credentials: "include"});
+      const res = await fetch(`${baseUrl}/api/auth/session`, {credentials: "include"});
       const bodyText = await res.text();
       const data = bodyText ? JSON.parse(bodyText) : null;
 
