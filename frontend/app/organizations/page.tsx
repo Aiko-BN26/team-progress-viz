@@ -15,7 +15,8 @@ import {
 import { cn } from "@/lib/utils";
 import { loadOrganizations } from "./data";
 import type { OrganizationListItem } from "./types";
-import { refreshOrganizationsAction } from "./actions";
+import { refreshOrganizationsAction, registerOrganizationAction } from "./actions";
+import { AddOrganizationDialog } from "./add-organization-dialog";
 
 const formatActivityTime = (isoDate: string) =>
   new Intl.DateTimeFormat("ja-JP", {
@@ -86,9 +87,7 @@ export default async function OrganizationsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button asChild>
-            <Link href="/enroll-organizations">Organizationを追加</Link>
-          </Button>
+          <AddOrganizationDialog registerOrganization={registerOrganizationAction} />
           <form action={refreshOrganizationsAction}>
             <Button variant="outline" type="submit">
               再読み込み
