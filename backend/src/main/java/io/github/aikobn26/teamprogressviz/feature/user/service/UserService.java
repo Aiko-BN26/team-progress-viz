@@ -15,6 +15,7 @@ import io.github.aikobn26.teamprogressviz.feature.organization.repository.DailyS
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.UserOrganizationRepository;
 import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
 import io.github.aikobn26.teamprogressviz.feature.user.repository.UserRepository;
+import io.github.aikobn26.teamprogressviz.shared.concurrency.KeyLockManager;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -26,6 +27,7 @@ public class UserService {
     private final UserOrganizationRepository userOrganizationRepository;
     private final DailyStatusRepository dailyStatusRepository;
     private final ActivityDailyRepository activityDailyRepository;
+    private final KeyLockManager keyLockManager;
 
     public User ensureUserExists(AuthenticatedUser authenticatedUser) {
         return ensureUserExists(authenticatedUser, null);
@@ -75,6 +77,11 @@ public class UserService {
             throw new IllegalArgumentException("login must not be blank");
         }
 
+        String lockKey = "github-user:" + githubId;
+        return keyLockManager.callWithLock(lockKey, () -> upsertGitHubUserInternal(githubId, login, name, avatarUrl));
+    }
+
+    private User upsertGitHubUserInternal(Long githubId, String login, String name, String avatarUrl) {
         return userRepository.findByGithubId(githubId)
                 .map(existing -> updateIfChanged(existing, login, name, avatarUrl))
                 .orElseGet(() -> userRepository.save(User.builder()

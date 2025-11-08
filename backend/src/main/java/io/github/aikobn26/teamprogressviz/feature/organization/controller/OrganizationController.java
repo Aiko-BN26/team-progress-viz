@@ -19,10 +19,12 @@ import io.github.aikobn26.teamprogressviz.feature.job.dto.response.JobSubmission
 import io.github.aikobn26.teamprogressviz.feature.job.service.JobService;
 import io.github.aikobn26.teamprogressviz.feature.organization.dto.request.OrganizationRegistrationRequest;
 import io.github.aikobn26.teamprogressviz.feature.organization.dto.response.OrganizationDetailResponse;
+import io.github.aikobn26.teamprogressviz.feature.organization.dto.response.OrganizationEnsureSyncResponse;
 import io.github.aikobn26.teamprogressviz.feature.organization.dto.response.OrganizationRegistrationResponse;
 import io.github.aikobn26.teamprogressviz.feature.organization.dto.response.OrganizationSummaryResponse;
 import io.github.aikobn26.teamprogressviz.feature.organization.dto.response.RepositorySyncStatusResponse;
 import io.github.aikobn26.teamprogressviz.feature.organization.service.OrganizationService;
+import io.github.aikobn26.teamprogressviz.feature.user.service.UserOnboardingService;
 import io.github.aikobn26.teamprogressviz.feature.user.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -38,6 +40,7 @@ public class OrganizationController {
     private final UserService userService;
     private final OrganizationService organizationService;
     private final JobService jobService;
+    private final UserOnboardingService userOnboardingService;
 
     @GetMapping
     public ResponseEntity<List<OrganizationSummaryResponse>> list(HttpSession session) {
@@ -86,6 +89,36 @@ public class OrganizationController {
                 job.id(),
                 0
         );
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    @PostMapping("/ensure-sync")
+    public ResponseEntity<OrganizationEnsureSyncResponse> ensureAndSynchronize(HttpSession session) {
+        var authenticated = gitHubOAuthService.getAuthenticatedUser(session);
+        if (authenticated.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        var accessToken = gitHubOAuthService.getAccessToken(session);
+        if (accessToken.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        var user = userService.ensureUserExists(authenticated.get());
+        var onboardingJobs = userOnboardingService.onboardUser(user, accessToken.get());
+
+        if (!onboardingJobs.isEmpty()) {
+            session.setAttribute(UserOnboardingService.SESSION_ATTRIBUTE_ONBOARDING_JOBS, onboardingJobs);
+        } else {
+            session.removeAttribute(UserOnboardingService.SESSION_ATTRIBUTE_ONBOARDING_JOBS);
+        }
+
+        var response = new OrganizationEnsureSyncResponse(onboardingJobs.stream()
+                .map(job -> new OrganizationEnsureSyncResponse.SyncJob(
+                        job.organizationId(),
+                        job.organizationLogin(),
+                        job.jobId()))
+                .toList());
+
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 

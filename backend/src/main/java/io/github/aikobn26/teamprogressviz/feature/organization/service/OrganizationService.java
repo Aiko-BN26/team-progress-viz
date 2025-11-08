@@ -2,6 +2,7 @@ package io.github.aikobn26.teamprogressviz.feature.organization.service;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -34,6 +35,7 @@ import io.github.aikobn26.teamprogressviz.feature.repository.repository.Reposito
 import io.github.aikobn26.teamprogressviz.feature.repository.service.RepositoryActivitySyncService;
 import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
 import io.github.aikobn26.teamprogressviz.feature.user.service.UserService;
+import io.github.aikobn26.teamprogressviz.shared.concurrency.KeyLockManager;
 import io.github.aikobn26.teamprogressviz.shared.exception.ForbiddenException;
 import io.github.aikobn26.teamprogressviz.shared.exception.ResourceConflictException;
 import io.github.aikobn26.teamprogressviz.shared.exception.ResourceNotFoundException;
@@ -55,6 +57,7 @@ public class OrganizationService {
     private final GitCommitRepository gitCommitRepository;
     private final PullRequestRepository pullRequestRepository;
     private final CommentRepository commentRepository;
+    private final KeyLockManager keyLockManager;
 
     private static final int RECENT_PULL_REQUEST_LIMIT = 10;
     private static final int RECENT_COMMIT_LIMIT = 20;
@@ -134,6 +137,30 @@ public class OrganizationService {
         ensureMembership(user, savedOrganization);
 
         return new OrganizationSyncResult(savedOrganization, gitHubOrganization, 0);
+    }
+
+    public EnsureOrganizationResult ensureOrganizationExists(String login, String defaultLinkUrl, String accessToken) {
+        if (!StringUtils.hasText(login)) {
+            throw new ValidationException("'login' must not be blank");
+        }
+        if (!StringUtils.hasText(accessToken)) {
+            throw new ValidationException("GitHub access token is required");
+        }
+
+        String normalizedLogin = login.trim();
+        String lockKey = "organization:" + normalizedLogin.toLowerCase(Locale.ROOT);
+
+        return keyLockManager.callWithLock(lockKey, () -> {
+            GitHubOrganization gitHubOrganization = gitHubOrganizationService
+                    .getOrganization(accessToken, normalizedLogin)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Organization not found on GitHub: " + normalizedLogin));
+
+            Organization organization = resolveOrganization(gitHubOrganization, defaultLinkUrl);
+            boolean created = organization.getId() == null;
+            Organization saved = organizationRepository.save(organization);
+            return new EnsureOrganizationResult(saved, gitHubOrganization, created);
+        });
     }
 
     public OrganizationSyncResult synchronizeOrganization(Long organizationId, String accessToken) {
@@ -599,6 +626,11 @@ public class OrganizationService {
     public record OrganizationSyncResult(Organization organization,
             GitHubOrganization gitHubOrganization,
             int syncedRepositories) {
+    }
+
+    public record EnsureOrganizationResult(Organization organization,
+        GitHubOrganization gitHubOrganization,
+        boolean created) {
     }
 
     public record OrganizationDetail(Organization organization,

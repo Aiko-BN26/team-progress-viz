@@ -120,31 +120,39 @@ public class GitHubRepositoryService {
     }
 
         public List<GitHubCommit> listCommits(String accessToken, String owner, String repository, int perPage, OffsetDateTime since) {
-        if (!hasText(accessToken) || !hasText(owner) || !hasText(repository)) {
-            throw new IllegalArgumentException("accessToken, owner, and repository must not be blank");
+                if (!hasText(accessToken) || !hasText(owner) || !hasText(repository)) {
+                        throw new IllegalArgumentException("accessToken, owner, and repository must not be blank");
+                }
+
+                int size = Math.min(Math.max(perPage, 1), 100);
+                UriComponentsBuilder builder = UriComponentsBuilder.fromUri(apiProperties.baseUrl())
+                                .pathSegment("repos", owner, repository, "commits")
+                                .queryParam("per_page", size);
+                if (since != null) {
+                        builder.queryParam("since", since.toString());
+                }
+                URI uri = builder.build().toUri();
+
+                GitHubCommitResponse[] response;
+                try {
+                        response = executeGet(uri, GitHubCommitResponse[].class, accessToken,
+                                        "Failed to fetch commits");
+                } catch (GitHubApiException e) {
+                        if (e.statusCode() != null && e.statusCode().value() == 409) {
+                                return List.of();
+                        }
+                        throw e;
+                }
+
+                if (response == null) {
+                        return List.of();
+                }
+
+                return Arrays.stream(response)
+                                .filter(Objects::nonNull)
+                                .map(this::toCommit)
+                                .toList();
         }
-
-        int size = Math.min(Math.max(perPage, 1), 100);
-        UriComponentsBuilder builder = UriComponentsBuilder.fromUri(apiProperties.baseUrl())
-                .pathSegment("repos", owner, repository, "commits")
-                .queryParam("per_page", size);
-        if (since != null) {
-            builder.queryParam("since", since.toString());
-        }
-        URI uri = builder.build().toUri();
-
-        GitHubCommitResponse[] response = executeGet(uri, GitHubCommitResponse[].class, accessToken,
-                "Failed to fetch commits");
-
-        if (response == null) {
-            return List.of();
-        }
-
-        return Arrays.stream(response)
-                .filter(Objects::nonNull)
-                .map(this::toCommit)
-                .toList();
-    }
 
         public Optional<GitHubCommitDetail> getCommit(String accessToken, String owner, String repository, String sha) {
                 if (!hasText(accessToken) || !hasText(owner) || !hasText(repository) || !hasText(sha)) {

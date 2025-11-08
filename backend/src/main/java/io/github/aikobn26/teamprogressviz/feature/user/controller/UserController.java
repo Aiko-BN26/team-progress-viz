@@ -29,7 +29,6 @@ public class UserController {
 
     private final GitHubOAuthService gitHubOAuthService;
     private final UserService userService;
-    private final UserOnboardingService userOnboardingService;
     private final JobService jobService;
 
     @GetMapping("/me")
@@ -38,18 +37,7 @@ public class UserController {
         if (authenticated.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        var accessToken = gitHubOAuthService.getAccessToken(session);
-        List<UserOnboardingService.OnboardingJobResult> onboardingJobs = new ArrayList<>();
-        var user = userService.ensureUserExists(authenticated.get(), created -> accessToken
-                .ifPresent(token -> {
-                    System.out.println("Access token present, onboarding user");
-                    onboardingJobs.addAll(userOnboardingService.onboardUser(created, token));
-                }));
-        if (!onboardingJobs.isEmpty()) {
-            session.setAttribute(UserOnboardingService.SESSION_ATTRIBUTE_ONBOARDING_JOBS, onboardingJobs);
-        } else {
-            session.removeAttribute(UserOnboardingService.SESSION_ATTRIBUTE_ONBOARDING_JOBS);
-        }
+        var user = userService.ensureUserExists(authenticated.get());
         var response = new UserResponse(
                 user.getId(),
                 user.getGithubId(),

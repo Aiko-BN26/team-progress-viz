@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import io.github.aikobn26.teamprogressviz.feature.github.controller.GitHubApiException;
+import io.github.aikobn26.teamprogressviz.feature.github.exception.GitHubApiException;
 import io.github.aikobn26.teamprogressviz.feature.github.service.GitHubRepositoryService;
 import io.github.aikobn26.teamprogressviz.feature.github.service.GitHubRepositoryService.GitHubCommit;
 import io.github.aikobn26.teamprogressviz.feature.github.service.GitHubRepositoryService.GitHubCommitDetail;

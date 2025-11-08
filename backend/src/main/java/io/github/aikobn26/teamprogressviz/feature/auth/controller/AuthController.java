@@ -1,6 +1,8 @@
 package io.github.aikobn26.teamprogressviz.feature.auth.controller;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
@@ -14,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 import io.github.aikobn26.teamprogressviz.feature.auth.exception.GitHubOAuthException;
 import io.github.aikobn26.teamprogressviz.feature.auth.model.AuthenticatedUser;
 import io.github.aikobn26.teamprogressviz.feature.auth.service.GitHubOAuthService;
+import io.github.aikobn26.teamprogressviz.feature.user.service.UserOnboardingService;
+import io.github.aikobn26.teamprogressviz.feature.user.service.UserService;
 import io.github.aikobn26.teamprogressviz.shared.properties.FrontendProperties;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -27,6 +31,8 @@ public class AuthController {
 
     private final GitHubOAuthService gitHubOAuthService;
     private final FrontendProperties frontendProperties;
+    private final UserService userService;
+    private final UserOnboardingService userOnboardingService;
 
     /**
      * GitHubログインを開始し、Authorization Url を返します。
@@ -55,7 +61,18 @@ public class AuthController {
         HttpServletResponse response
     ) throws IOException {
         try {
-            gitHubOAuthService.completeAuthentication(code, state, session);
+            var authenticatedUser = gitHubOAuthService.completeAuthentication(code, state, session);
+
+            List<UserOnboardingService.OnboardingJobResult> onboardingJobs = new ArrayList<>();
+            var accessToken = gitHubOAuthService.getAccessToken(session);
+            userService.ensureUserExists(authenticatedUser, created ->
+                    accessToken.ifPresent(token -> onboardingJobs.addAll(userOnboardingService.onboardUser(created, token))));
+
+            if (!onboardingJobs.isEmpty()) {
+                session.setAttribute(UserOnboardingService.SESSION_ATTRIBUTE_ONBOARDING_JOBS, onboardingJobs);
+            } else {
+                session.removeAttribute(UserOnboardingService.SESSION_ATTRIBUTE_ONBOARDING_JOBS);
+            }
             response.sendRedirect(frontendProperties.successRedirectUrlWithStatus());
         } catch (GitHubOAuthException e) {
             response.sendRedirect(frontendProperties.errorRedirectUrl("認証に失敗しました"));
