@@ -5,13 +5,18 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import io.github.aikobn26.teamprogressviz.feature.github.exception.GitHubApiException;
@@ -24,6 +29,7 @@ import io.github.aikobn26.teamprogressviz.feature.github.service.GitHubRepositor
 import io.github.aikobn26.teamprogressviz.feature.github.service.GitHubRepositoryService.GitHubPullRequestSummary;
 import io.github.aikobn26.teamprogressviz.feature.github.service.GitHubRepositoryService.GitHubSimpleUser;
 import io.github.aikobn26.teamprogressviz.feature.organization.entity.Organization;
+import io.github.aikobn26.teamprogressviz.feature.organization.properties.OrganizationSyncProperties;
 import io.github.aikobn26.teamprogressviz.feature.organization.service.RepositorySyncStatusService;
 import io.github.aikobn26.teamprogressviz.feature.repository.entity.CommitFile;
 import io.github.aikobn26.teamprogressviz.feature.repository.entity.GitCommit;
@@ -43,7 +49,6 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class RepositoryActivitySyncService {
 
     private static final Logger log = LoggerFactory.getLogger(RepositoryActivitySyncService.class);
@@ -61,35 +66,61 @@ public class RepositoryActivitySyncService {
     private final RepositorySyncStatusService repositorySyncStatusService;
     private final GitHubRepositoryService gitHubRepositoryService;
     private final UserService userService;
+    private final OrganizationSyncProperties organizationSyncProperties;
+    private final PlatformTransactionManager transactionManager;
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void synchronizeActivities(Organization organization, String accessToken) {
         if (organization == null || organization.getId() == null) {
             return;
         }
-        List<Repository> repositories = repositoryRepository.findByOrganizationAndDeletedAtIsNull(organization);
-        for (Repository repository : repositories) {
-            synchronizeRepositoryInternal(repository, accessToken);
+
+        List<RepositorySyncTarget> targets = executeInTransaction(() -> repositoryRepository
+                .findByOrganizationIdAndDeletedAtIsNull(organization.getId())
+                .stream()
+                .map(this::toSyncTarget)
+                .filter(Objects::nonNull)
+                .toList());
+
+        for (RepositorySyncTarget target : targets) {
+            synchronizeRepositoryInternal(target, accessToken);
         }
     }
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void synchronizeRepository(Long repositoryId, String accessToken) {
         if (repositoryId == null) {
             throw new ValidationException("repositoryId must not be null");
         }
-        Repository repository = repositoryRepository.findById(repositoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Repository not found"));
-        synchronizeRepositoryInternal(repository, accessToken);
+        RepositorySyncTarget target = executeInTransaction(() -> repositoryRepository
+                .findByIdAndDeletedAtIsNull(repositoryId)
+                .map(this::toSyncTarget)
+                .orElseThrow(() -> new ResourceNotFoundException("Repository not found")));
+
+        synchronizeRepositoryInternal(target, accessToken);
     }
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void synchronizeRepository(Repository repository, String accessToken) {
-        synchronizeRepositoryInternal(repository, accessToken);
-    }
-
-    private void synchronizeRepositoryInternal(Repository repository, String accessToken) {
         if (repository == null || repository.getId() == null) {
             return;
         }
-        OwnerRepo ownerRepo = resolveOwnerAndName(repository);
+
+        RepositorySyncTarget target = executeInTransaction(() -> repositoryRepository
+                .findByIdAndDeletedAtIsNull(repository.getId())
+                .map(this::toSyncTarget)
+                .orElse(null));
+
+        if (target != null) {
+            synchronizeRepositoryInternal(target, accessToken);
+        }
+    }
+
+    private void synchronizeRepositoryInternal(RepositorySyncTarget target, String accessToken) {
+        if (target == null || target.id() == null) {
+            return;
+        }
+        OwnerRepo ownerRepo = resolveOwnerAndName(target);
         if (ownerRepo == null || !StringUtils.hasText(accessToken)) {
             return;
         }
@@ -116,13 +147,21 @@ public class RepositoryActivitySyncService {
                     continue;
                 }
                 GitHubPullRequest detail = detailOpt.get();
-                List<GitHubPullRequestFile> files = gitHubRepositoryService.listPullRequestFiles(
-                        accessToken,
-                        ownerRepo.owner(),
-                        ownerRepo.name(),
-                        detail.number(),
-                        MAX_PULL_REQUEST_FILES);
-                persistPullRequest(repository, detail, files);
+                List<GitHubPullRequestFile> files = organizationSyncProperties.isFetchPullRequestDetails()
+                        ? gitHubRepositoryService.listPullRequestFiles(
+                                accessToken,
+                                ownerRepo.owner(),
+                                ownerRepo.name(),
+                                detail.number(),
+                                MAX_PULL_REQUEST_FILES)
+                        : List.of();
+                executeInTransaction(() -> {
+                    Repository managedRepository = getActiveRepository(target.id());
+                    if (managedRepository == null) {
+                        return;
+                    }
+                    persistPullRequest(managedRepository, detail, files);
+                });
             }
 
             List<GitHubCommit> commits = gitHubRepositoryService.listCommits(
@@ -133,19 +172,73 @@ public class RepositoryActivitySyncService {
                     OffsetDateTime.now().minusDays(ACTIVITY_LOOKBACK_DAYS));
 
             for (GitHubCommit commit : commits) {
-                persistCommit(repository, ownerRepo, accessToken, commit);
+                if (commit == null || !StringUtils.hasText(commit.sha())) {
+                    continue;
+                }
+                CommitUpsertResult upsertResult = executeInTransaction(() -> {
+                    Repository managedRepository = getActiveRepository(target.id());
+                    if (managedRepository == null) {
+                        return null;
+                    }
+                    return persistCommit(managedRepository, commit);
+                });
+                if (upsertResult == null) {
+                    continue;
+                }
+
+                if (organizationSyncProperties.isFetchCommitDetails()) {
+                    if (!upsertResult.hasExistingFiles() && ownerRepo != null && StringUtils.hasText(accessToken)) {
+            Optional<GitHubCommitDetail> detailOpt = gitHubRepositoryService.getCommit(
+                                accessToken,
+                                ownerRepo.owner(),
+                                ownerRepo.name(),
+                                commit.sha());
+                        detailOpt.ifPresent(detail -> executeInTransaction(() -> {
+                            synchronizeCommitFiles(upsertResult.commit(), detail.files());
+                        }));
+                    }
+                } else {
+                    executeInTransaction(() -> {
+                        clearCommitFiles(upsertResult.commit());
+                    });
+                }
             }
 
             if (!commits.isEmpty() && commits.get(0) != null) {
                 latestCommitSha = commits.get(0).sha();
             }
 
-            repositorySyncStatusService.markSynced(repository, OffsetDateTime.now(), latestCommitSha);
+            String latestShaForStatus = latestCommitSha;
+            OffsetDateTime finishedAt = OffsetDateTime.now();
+            executeInTransaction(() -> {
+                Repository managedRepository = getActiveRepository(target.id());
+                if (managedRepository == null) {
+                    return;
+                }
+                repositorySyncStatusService.markSynced(managedRepository, finishedAt, latestShaForStatus);
+            });
         } catch (GitHubApiException e) {
-            log.warn("Failed to synchronize repository {}: {}", repository.getFullName(), e.getMessage());
-            repositorySyncStatusService.markFailure(repository, attemptStartedAt, e.getMessage());
+            String repositoryName = StringUtils.hasText(target.fullName())
+                    ? target.fullName()
+                    : String.valueOf(target.id());
+            log.warn("Failed to synchronize repository {}: {}", repositoryName, e.getMessage());
+            String message = e.getMessage();
+            executeInTransaction(() -> {
+                Repository managedRepository = getActiveRepository(target.id());
+                if (managedRepository == null) {
+                    return;
+                }
+                repositorySyncStatusService.markFailure(managedRepository, attemptStartedAt, message);
+            });
         } catch (RuntimeException e) {
-            repositorySyncStatusService.markFailure(repository, attemptStartedAt, e.getMessage());
+            String message = e.getMessage();
+            executeInTransaction(() -> {
+                Repository managedRepository = getActiveRepository(target.id());
+                if (managedRepository == null) {
+                    return;
+                }
+                repositorySyncStatusService.markFailure(managedRepository, attemptStartedAt, message);
+            });
             throw e;
         }
     }
@@ -177,7 +270,11 @@ public class RepositoryActivitySyncService {
         entity.setDeletedAt(null);
 
         PullRequest saved = pullRequestRepository.save(entity);
-        synchronizePullRequestFiles(saved, files);
+        if (organizationSyncProperties.isFetchPullRequestDetails()) {
+            synchronizePullRequestFiles(saved, files);
+        } else {
+            clearPullRequestFiles(saved);
+        }
     }
 
     private void synchronizePullRequestFiles(PullRequest pullRequest, List<GitHubPullRequestFile> files) {
@@ -225,12 +322,9 @@ public class RepositoryActivitySyncService {
         }
     }
 
-    private void persistCommit(Repository repository,
-                               OwnerRepo ownerRepo,
-                               String accessToken,
-                               GitHubCommit commit) {
+    private CommitUpsertResult persistCommit(Repository repository, GitHubCommit commit) {
         if (commit == null || !StringUtils.hasText(commit.sha())) {
-            return;
+            return null;
         }
         GitCommit entity = gitCommitRepository
                 .findByRepositoryIdAndShaAndDeletedAtIsNull(repository.getId(), commit.sha())
@@ -254,14 +348,7 @@ public class RepositoryActivitySyncService {
         GitCommit saved = gitCommitRepository.save(entity);
 
         boolean hasFiles = commitFileRepository.existsByCommitIdAndDeletedAtIsNull(saved.getId());
-        if (!hasFiles && ownerRepo != null && StringUtils.hasText(accessToken)) {
-            Optional<GitHubCommitDetail> detailOpt = gitHubRepositoryService.getCommit(
-                    accessToken,
-                    ownerRepo.owner(),
-                    ownerRepo.name(),
-                    commit.sha());
-            detailOpt.ifPresent(detail -> synchronizeCommitFiles(saved, detail.files()));
-        }
+        return new CommitUpsertResult(saved, hasFiles);
     }
 
     private void synchronizeCommitFiles(GitCommit commit,
@@ -311,6 +398,48 @@ public class RepositoryActivitySyncService {
         }
     }
 
+    private void clearCommitFiles(GitCommit commit) {
+        if (commit == null || commit.getId() == null) {
+            return;
+        }
+        List<CommitFile> current = commitFileRepository
+                .findByCommitIdAndDeletedAtIsNullOrderByPathAsc(commit.getId());
+        if (current.isEmpty()) {
+            return;
+        }
+        OffsetDateTime now = OffsetDateTime.now();
+        for (CommitFile file : current) {
+            file.setDeletedAt(now);
+            commitFileRepository.save(file);
+        }
+    }
+
+    private void clearPullRequestFiles(PullRequest pullRequest) {
+        if (pullRequest == null || pullRequest.getId() == null) {
+            return;
+        }
+        List<PullRequestFile> current = pullRequestFileRepository
+                .findByPullRequestIdAndDeletedAtIsNullOrderByPathAsc(pullRequest.getId());
+        if (current.isEmpty()) {
+            return;
+        }
+        OffsetDateTime now = OffsetDateTime.now();
+        for (PullRequestFile file : current) {
+            file.setDeletedAt(now);
+            pullRequestFileRepository.save(file);
+        }
+    }
+
+    private void executeInTransaction(Runnable action) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.executeWithoutResult(status -> action.run());
+    }
+
+    private <T> T executeInTransaction(Supplier<T> action) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        return template.execute(status -> action.get());
+    }
+
     private User toUser(GitHubSimpleUser simpleUser) {
         if (simpleUser == null || simpleUser.id() == null || !StringUtils.hasText(simpleUser.login())) {
             return null;
@@ -318,20 +447,58 @@ public class RepositoryActivitySyncService {
         return userService.upsertGitHubUser(simpleUser.id(), simpleUser.login(), null, simpleUser.avatarUrl());
     }
 
-    private OwnerRepo resolveOwnerAndName(Repository repository) {
-        if (repository == null) {
+    private OwnerRepo resolveOwnerAndName(RepositorySyncTarget target) {
+        if (target == null) {
             return null;
         }
-        if (StringUtils.hasText(repository.getFullName()) && repository.getFullName().contains("/")) {
-            String[] parts = repository.getFullName().split("/", 2);
+        if (StringUtils.hasText(target.fullName()) && target.fullName().contains("/")) {
+            String[] parts = target.fullName().split("/", 2);
             if (parts.length == 2 && StringUtils.hasText(parts[0]) && StringUtils.hasText(parts[1])) {
                 return new OwnerRepo(parts[0], parts[1]);
             }
         }
-        if (repository.getOrganization() != null && StringUtils.hasText(repository.getOrganization().getLogin()) && StringUtils.hasText(repository.getName())) {
-            return new OwnerRepo(repository.getOrganization().getLogin(), repository.getName());
+        if (StringUtils.hasText(target.ownerLogin()) && StringUtils.hasText(target.name())) {
+            return new OwnerRepo(target.ownerLogin(), target.name());
+        }
+        if (StringUtils.hasText(target.organizationLogin()) && StringUtils.hasText(target.name())) {
+            return new OwnerRepo(target.organizationLogin(), target.name());
         }
         return null;
+    }
+
+    private RepositorySyncTarget toSyncTarget(Repository repository) {
+        if (repository == null || repository.getId() == null) {
+            return null;
+        }
+
+        String ownerLogin = StringUtils.hasText(repository.getOwnerLogin())
+                ? repository.getOwnerLogin().trim()
+                : null;
+        String name = StringUtils.hasText(repository.getName()) ? repository.getName().trim() : null;
+        String fullName = StringUtils.hasText(repository.getFullName()) ? repository.getFullName().trim() : null;
+        Long organizationId = null;
+        String organizationLogin = null;
+
+        Organization repoOrganization = repository.getOrganization();
+        if (repoOrganization != null) {
+            organizationId = repoOrganization.getId();
+            if (!StringUtils.hasText(ownerLogin) && StringUtils.hasText(repoOrganization.getLogin())) {
+                ownerLogin = repoOrganization.getLogin().trim();
+            }
+            if (!StringUtils.hasText(fullName) && StringUtils.hasText(name) && StringUtils.hasText(ownerLogin)) {
+                fullName = ownerLogin + "/" + name;
+            }
+            if (StringUtils.hasText(repoOrganization.getLogin())) {
+                organizationLogin = repoOrganization.getLogin().trim();
+            }
+        }
+
+        return new RepositorySyncTarget(repository.getId(), ownerLogin, name, fullName, organizationId, organizationLogin);
+    }
+
+    private Repository getActiveRepository(Long repositoryId) {
+        return repositoryRepository.findByIdAndDeletedAtIsNull(repositoryId)
+                .orElse(null);
     }
 
     private String extractExtension(String path) {
@@ -347,5 +514,17 @@ public class RepositoryActivitySyncService {
     }
 
     private record OwnerRepo(String owner, String name) {
+    }
+
+    private record CommitUpsertResult(GitCommit commit, boolean hasExistingFiles) {
+    }
+
+    private record RepositorySyncTarget(
+            Long id,
+            String ownerLogin,
+            String name,
+            String fullName,
+            Long organizationId,
+            String organizationLogin) {
     }
 }
