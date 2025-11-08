@@ -214,9 +214,17 @@ const MOCK_DATA: Record<string, OrganizationViewData> = {
   },
 };
 
-export async function fetchOrganizationViewData(
+type MockOptions = {
+  simulateDelay?: boolean;
+};
+
+export async function fetchMockOrganizationViewData(
   organizationId: string,
+  options?: MockOptions,
 ): Promise<OrganizationViewData | null> {
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  const shouldDelay = options?.simulateDelay ?? true;
+  if (shouldDelay) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
   return MOCK_DATA[organizationId] ?? null;
 }
