@@ -3,25 +3,21 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   AlertCircle,
-  ArrowUpRight,
+  ArrowLeft,
   CalendarDays,
   Loader2,
   Users,
 } from "lucide-react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { ActivityChart } from "@/components/organization/activity-chart";
 import { MemberStatusBoard } from "@/components/organization/member-status-board";
 import { MyStatusCard } from "@/components/organization/my-status-card";
 import { loadOrganizationViewData } from "./data";
-import type { CommitActivity, OrganizationViewData } from "./types";
+import type { OrganizationViewData } from "./types";
+import { RecentCommitsCard } from "@/components/organization/recent-commits-card";
+import { SyncOrganizationForm } from "./sync-form";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -68,49 +64,6 @@ const StatCard = ({
   </Card>
 );
 
-const RecentCommitsCard = ({
-  commits,
-  timezone,
-}: {
-  commits: CommitActivity[];
-  timezone: string;
-}) => (
-  <Card className="h-full">
-    <CardHeader>
-      <CardTitle className="text-base">最近のコミット/PR</CardTitle>
-      <CardDescription>GitHubの最新活動から概要のみを表示しています</CardDescription>
-    </CardHeader>
-    <CardContent>
-      {commits.length === 0 ? (
-        <p className="text-sm text-muted-foreground">表示できる活動がありません。</p>
-      ) : (
-        <ul className="space-y-4">
-          {commits.map((commit) => (
-            <li key={commit.id} className="rounded-lg border p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                <p className="font-semibold">{commit.title}</p>
-                <span className="text-xs text-muted-foreground">
-                  {formatDateTime(commit.committedAt, timezone)}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {commit.repository} / {commit.author}
-              </p>
-              <Link
-                href={commit.url}
-                className="mt-2 inline-flex items-center gap-1 text-sm text-primary underline-offset-4 hover:underline"
-              >
-                詳細を見る
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </CardContent>
-  </Card>
-);
-
 async function getPageData(organizationId: string): Promise<OrganizationViewData | null> {
   return loadOrganizationViewData(organizationId);
 }
@@ -136,7 +89,16 @@ export default async function OrganizationDetailPage({ params }: PageProps) {
     : 0;
 
   return (
-    <main className="space-y-8 px-6 py-10">
+    <main className="space-y-8 px-6 py-7">
+      <div>
+        <Link
+          href="/organizations"
+          className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium text-muted-foreground transition hover:bg-muted"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>組織一覧へ戻る</span>
+        </Link>
+      </div>
       <section className="flex flex-col gap-4 rounded-2xl border bg-card p-6 shadow-sm md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-4">
           <div className="h-16 w-16 overflow-hidden rounded-full border bg-muted">
@@ -155,6 +117,9 @@ export default async function OrganizationDetailPage({ params }: PageProps) {
               最終更新: {formatDateTime(detail.lastActivity, detail.timezone)}
             </p>
           </div>
+        </div>
+        <div className="flex justify-end md:justify-end">
+          <SyncOrganizationForm organizationId={detail.id} />
         </div>
       </section>
 

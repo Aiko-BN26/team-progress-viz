@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 import { backendFetchJson } from "@/lib/server-api";
 
@@ -12,10 +14,109 @@ type OrganizationRegistrationResponse = {
   organizationId?: number;
 };
 
+type JobSubmissionResponse = {
+  jobId?: string;
+  status?: string;
+};
+
+type JobSyncStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+
+type JobStatusResponse = {
+  jobId: string;
+  status: JobSyncStatus;
+  errorMessage?: string | null;
+};
+
+export type SyncOrganizationActionState = {
+  ok: boolean;
+  message?: string;
+};
+
+const JOB_POLL_INTERVAL_MS = 1000;
+const JOB_POLL_TIMEOUT_MS = 60_000;
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function triggerOrganizationSync(organizationId: number) {
-  await backendFetchJson(`/api/organizations/${organizationId}/sync`, {
+  const result = await backendFetchJson<JobSubmissionResponse>(`/api/organizations/${organizationId}/sync`, {
     method: "POST",
   });
+  return result.data ?? null;
+}
+
+async function waitForJobCompletion(jobId: string) {
+  const deadline = Date.now() + JOB_POLL_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await delay(JOB_POLL_INTERVAL_MS);
+    const statusResult = await backendFetchJson<JobStatusResponse>(`/api/jobs/${jobId}`);
+    if (statusResult.status === 404 || !statusResult.data) {
+      throw new Error(`ジョブ(${jobId})の状態を取得できませんでした`);
+    }
+    const status = statusResult.data.status;
+    if (status === "SUCCEEDED") {
+      return;
+    }
+    if (status === "FAILED") {
+      throw new Error(statusResult.data.errorMessage ?? "同期ジョブが失敗しました");
+    }
+  }
+  throw new Error("同期ジョブがタイムアウトしました");
+}
+
+const defaultSyncErrorMessage = "同期に失敗しました。時間をおいて再度お試しください。";
+
+export async function syncOrganizationAction(
+  organizationIdInput: number | string,
+  _prevState: SyncOrganizationActionState,
+  _formData?: FormData,
+): Promise<SyncOrganizationActionState> {
+  void _prevState;
+  void _formData;
+
+  try {
+    const syncId = normalizeOrganizationId(organizationIdInput);
+    if (syncId == null) {
+      throw new Error("同期対象の組織IDが不正です");
+    }
+
+    const submission = await triggerOrganizationSync(syncId);
+    if (submission?.jobId) {
+      await waitForJobCompletion(submission.jobId);
+    }
+    const pathId = organizationIdInput.toString();
+    revalidatePath(`/organizations/${pathId}`);
+    revalidatePath("/organizations");
+    redirect(`/organizations/${pathId}`);
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+    console.error("[organizations] syncOrganizationAction failed", organizationIdInput, error);
+    const message = error instanceof Error ? error.message : defaultSyncErrorMessage;
+    return {
+      ok: false,
+      message,
+    };
+  }
+
+  return {
+    ok: true,
+  };
+}
+
+function normalizeOrganizationId(value: number | string): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
 }
 
 export type RegisterOrganizationResult = {
