@@ -97,6 +97,49 @@ class OrganizationServiceTest {
     }
 
     @Test
+    void listOrganizations_filtersDeletedMembershipsAndOrganizations() {
+        Organization active = organizationRepository.save(Organization.builder()
+                .githubId(101L)
+                .login("active-org")
+                .name("Active Org")
+                .build());
+
+        Organization softDeleted = organizationRepository.save(Organization.builder()
+                .githubId(102L)
+                .login("soft-deleted-org")
+                .name("Soft Deleted Org")
+                .deletedAt(OffsetDateTime.now())
+                .build());
+
+        userOrganizationRepository.save(UserOrganization.builder()
+                .user(primaryUser)
+                .organization(active)
+                .role("member")
+                .build());
+
+        userOrganizationRepository.save(UserOrganization.builder()
+                .user(primaryUser)
+                .organization(softDeleted)
+                .role("member")
+                .build());
+
+        List<Organization> organizations = organizationService.listOrganizations(primaryUser);
+
+        assertThat(organizations)
+                .hasSize(1)
+                .first()
+                .extracting(Organization::getLogin)
+                .isEqualTo("active-org");
+    }
+
+    @Test
+    void listOrganizations_throwsWhenUserNull() {
+        assertThatThrownBy(() -> organizationService.listOrganizations(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("user must not be null");
+    }
+
+    @Test
     void registerOrganization_createsOrganizationAndMembership() {
         when(gitHubOrganizationService.getOrganization(eq("token"), eq("octo-org")))
                 .thenReturn(Optional.of(new GitHubOrganization(10L, "octo-org", "Octo Org", "org desc", "https://avatar", "https://github.com/octo-org")));
@@ -164,6 +207,41 @@ class OrganizationServiceTest {
                 .get()
                 .extracting(UserOrganization::getDeletedAt)
                 .isNull();
+    }
+
+    @Test
+    void ensureOrganizationExists_createsNewOrganizationWhenMissing() {
+        when(gitHubOrganizationService.getOrganization(eq("token"), eq("fresh-org")))
+                .thenReturn(Optional.of(new GitHubOrganization(55L, "fresh-org", "Fresh Org", "new org", "https://avatar/fresh", "https://github.com/fresh-org")));
+
+        var result = organizationService.ensureOrganizationExists("fresh-org", "https://docs", "token");
+
+        assertThat(result.created()).isTrue();
+        Organization persisted = organizationRepository.findById(result.organization().getId()).orElseThrow();
+        assertThat(persisted.getGithubId()).isEqualTo(55L);
+        assertThat(persisted.getDefaultLinkUrl()).isEqualTo("https://docs");
+    }
+
+    @Test
+    void ensureOrganizationExists_reactivatesSoftDeletedOrganization() {
+        Organization softDeleted = organizationRepository.save(Organization.builder()
+                .githubId(77L)
+                .login("legacy-org")
+                .name("Legacy")
+                .defaultLinkUrl("https://old-link")
+                .deletedAt(OffsetDateTime.now())
+                .build());
+
+        when(gitHubOrganizationService.getOrganization(eq("token"), eq("legacy-org")))
+                .thenReturn(Optional.of(new GitHubOrganization(77L, "legacy-org", "Legacy Org", "restored", "https://avatar/legacy", "https://github.com/legacy-org")));
+
+        var result = organizationService.ensureOrganizationExists("legacy-org", "https://new-link", "token");
+
+        assertThat(result.created()).isFalse();
+        Organization refreshed = organizationRepository.findById(softDeleted.getId()).orElseThrow();
+        assertThat(refreshed.getDeletedAt()).isNull();
+        assertThat(refreshed.getName()).isEqualTo("Legacy Org");
+        assertThat(refreshed.getDefaultLinkUrl()).isEqualTo("https://new-link");
     }
 
     @Test
@@ -344,6 +422,48 @@ class OrganizationServiceTest {
         assertThat(deletedOrganization.getDeletedAt()).isNotNull();
         assertThat(userOrganizationRepository.findByOrganizationIdAndDeletedAtIsNull(deletedOrganization.getId())).isEmpty();
         assertThat(repositoryRepository.findByOrganizationAndDeletedAtIsNull(deletedOrganization)).isEmpty();
+    }
+
+    @Test
+    void synchronizeOrganization_marksRepositoriesDeletedWhenMissing() {
+        when(gitHubOrganizationService.getOrganization(eq("token"), eq("octo-org")))
+                .thenReturn(Optional.of(new GitHubOrganization(10L, "octo-org", "Octo Org", "org desc", "https://avatar", "https://github.com/octo-org")));
+        var member = toMember(primaryUser);
+        when(gitHubOrganizationService.listMembers(eq("token"), eq("octo-org")))
+                .thenReturn(List.of(member))
+                .thenReturn(List.of(member))
+                .thenReturn(List.of(member));
+
+        var registration = organizationService.registerOrganization(primaryUser, "octo-org", null, "token");
+
+        GitHubRepository repositoryPayload = new GitHubRepository(99L, "repo", "repo desc", "https://github.com/octo-org/repo", "Java", 42, 7, "main", true, false);
+        GitHubRepository replacementPayload = new GitHubRepository(100L, "repo-2", "repo2 desc", "https://github.com/octo-org/repo-2", "Kotlin", 12, 3, "main", false, false);
+        when(gitHubOrganizationService.listRepositories(eq("token"), eq("octo-org")))
+                .thenReturn(List.of(repositoryPayload))
+                .thenReturn(List.of(replacementPayload));
+
+        organizationService.synchronizeOrganization(registration.organization().getId(), "token");
+        organizationService.synchronizeOrganization(registration.organization().getId(), "token");
+
+        Organization persisted = organizationRepository.findById(registration.organization().getId()).orElseThrow();
+        List<Repository> activeRepositories = repositoryRepository.findByOrganizationAndDeletedAtIsNull(persisted);
+        assertThat(activeRepositories)
+                .hasSize(1)
+                .first()
+                .extracting(Repository::getGithubId)
+                .isEqualTo(100L);
+
+        Repository storedRepository = repositoryRepository.findAll().stream()
+                .filter(repo -> repo.getGithubId() != null && repo.getGithubId().equals(99L))
+                .findFirst()
+                .orElseThrow();
+        assertThat(storedRepository.getDeletedAt()).isNotNull();
+
+        var status = repositorySyncStatusRepository.findAll().stream()
+                .filter(s -> s.getRepository() != null && s.getRepository().getGithubId() != null && s.getRepository().getGithubId().equals(99L))
+                .findFirst()
+                .orElseThrow();
+        assertThat(status.getDeletedAt()).isNotNull();
     }
 
     @TestConfiguration
