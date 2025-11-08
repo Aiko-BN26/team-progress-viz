@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { loadOrganizations } from "./data";
 import type { OrganizationListItem } from "./types";
+import { refreshOrganizationsAction } from "./actions";
 
 const formatActivityTime = (isoDate: string) =>
   new Intl.DateTimeFormat("ja-JP", {
@@ -88,7 +89,11 @@ export default async function OrganizationsPage() {
           <Button asChild>
             <Link href="/enroll-organizations">Organizationを追加</Link>
           </Button>
-          <Button variant="outline">再読み込み</Button>
+          <form action={refreshOrganizationsAction}>
+            <Button variant="outline" type="submit">
+              再読み込み
+            </Button>
+          </form>
         </div>
       </header>
 
