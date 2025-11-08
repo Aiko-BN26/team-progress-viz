@@ -104,6 +104,11 @@ class OrganizationServiceTest {
     @Autowired
     private WebhookEventRepository webhookEventRepository;
 
+        @Autowired
+        private PlatformTransactionManager transactionManager;
+
+        private TransactionTemplate transactionTemplate;
+
     private User primaryUser;
 
     @BeforeEach

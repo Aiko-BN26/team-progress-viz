@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 if (!baseUrl) {
   throw new Error("NEXT_PUBLIC_API_URL is not defined");
 }
@@ -19,18 +19,11 @@ export default async function proxy(request: NextRequest) {
   }
 
   try {
-    const isAbsoluteBaseUrl = baseUrl.startsWith("http://") || baseUrl.startsWith("https://");
-    const sessionUrl = isAbsoluteBaseUrl
-      ? `${baseUrl}/api/auth/session`
-      : `${request.nextUrl.origin}${baseUrl}/api/auth/session`;
-
-    const sessionResponse = await fetch(sessionUrl, {
+    const sessionResponse = await fetch(`${baseUrl}/api/auth/session`, {
       method: "GET",
       headers: buildHeaders(request),
       cache: "no-store",
     });
-
-    console.log("[proxy] session check", sessionResponse.status);
 
     if (sessionResponse.ok) {
       if (pathname === "/") {
