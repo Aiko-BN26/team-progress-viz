@@ -1,4 +1,4 @@
-package io.github.aikobn26.teamprogressviz.auth.controller;
+package io.github.aikobn26.teamprogressviz.feature.auth.controller;
 
 import java.io.IOException;
 import java.util.Map;
@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import io.github.aikobn26.teamprogressviz.auth.exception.GitHubOAuthException;
-import io.github.aikobn26.teamprogressviz.auth.model.AuthenticatedUser;
-import io.github.aikobn26.teamprogressviz.auth.service.GitHubOAuthService;
+import io.github.aikobn26.teamprogressviz.feature.auth.exception.GitHubOAuthException;
+import io.github.aikobn26.teamprogressviz.feature.auth.model.AuthenticatedUser;
+import io.github.aikobn26.teamprogressviz.feature.auth.service.GitHubOAuthService;
 import io.github.aikobn26.teamprogressviz.shared.properties.FrontendProperties;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;

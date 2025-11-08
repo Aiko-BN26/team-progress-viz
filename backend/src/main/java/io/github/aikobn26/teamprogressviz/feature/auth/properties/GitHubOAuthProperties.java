@@ -1,4 +1,4 @@
-package io.github.aikobn26.teamprogressviz.shared.properties;
+package io.github.aikobn26.teamprogressviz.feature.auth.properties;
 
 import java.net.URI;
 import java.util.Objects;

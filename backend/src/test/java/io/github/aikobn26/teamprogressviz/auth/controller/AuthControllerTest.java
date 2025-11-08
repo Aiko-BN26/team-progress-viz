@@ -23,9 +23,10 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
-import io.github.aikobn26.teamprogressviz.auth.exception.GitHubOAuthException;
-import io.github.aikobn26.teamprogressviz.auth.model.AuthenticatedUser;
-import io.github.aikobn26.teamprogressviz.auth.service.GitHubOAuthService;
+import io.github.aikobn26.teamprogressviz.feature.auth.controller.AuthController;
+import io.github.aikobn26.teamprogressviz.feature.auth.exception.GitHubOAuthException;
+import io.github.aikobn26.teamprogressviz.feature.auth.model.AuthenticatedUser;
+import io.github.aikobn26.teamprogressviz.feature.auth.service.GitHubOAuthService;
 import io.github.aikobn26.teamprogressviz.shared.properties.FrontendProperties;
 
 @WebMvcTest(AuthController.class)

@@ -7,7 +7,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
-import io.github.aikobn26.teamprogressviz.auth.exception.GitHubOAuthException;
+import io.github.aikobn26.teamprogressviz.feature.auth.controller.AuthControllerExceptionHandler;
+import io.github.aikobn26.teamprogressviz.feature.auth.exception.GitHubOAuthException;
 
 class AuthControllerExceptionHandlerTest {
 

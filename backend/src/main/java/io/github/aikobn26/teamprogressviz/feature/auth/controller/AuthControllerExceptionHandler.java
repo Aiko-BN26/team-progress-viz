@@ -1,4 +1,4 @@
-package io.github.aikobn26.teamprogressviz.auth.controller;
+package io.github.aikobn26.teamprogressviz.feature.auth.controller;
 
 import java.util.Map;
 
@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import io.github.aikobn26.teamprogressviz.auth.exception.GitHubOAuthException;
+import io.github.aikobn26.teamprogressviz.feature.auth.exception.GitHubOAuthException;
 
 @RestControllerAdvice(assignableTypes = AuthController.class)
 public class AuthControllerExceptionHandler {

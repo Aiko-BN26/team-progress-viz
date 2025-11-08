@@ -1,4 +1,4 @@
-package io.github.aikobn26.teamprogressviz.auth.model;
+package io.github.aikobn26.teamprogressviz.feature.auth.model;
 
 import java.io.Serializable;
 
