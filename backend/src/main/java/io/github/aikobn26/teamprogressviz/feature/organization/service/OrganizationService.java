@@ -14,10 +14,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubOrganization;
+import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubOrganizationMember;
+import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubRepository;
 import io.github.aikobn26.teamprogressviz.feature.github.service.GitHubOrganizationService;
+import io.github.aikobn26.teamprogressviz.feature.organization.entity.Comment;
+import io.github.aikobn26.teamprogressviz.feature.organization.entity.Organization;
+import io.github.aikobn26.teamprogressviz.feature.organization.entity.RepositorySyncStatus;
+import io.github.aikobn26.teamprogressviz.feature.organization.entity.UserOrganization;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.CommentRepository;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.OrganizationRepository;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.UserOrganizationRepository;
+import io.github.aikobn26.teamprogressviz.feature.repository.entity.Repository;
+import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
+import io.github.aikobn26.teamprogressviz.shared.exception.ResourceConflictException;
+import io.github.aikobn26.teamprogressviz.shared.exception.ResourceNotFoundException;
+import io.github.aikobn26.teamprogressviz.shared.exception.ValidationException;
 import lombok.RequiredArgsConstructor;
 
 @Service
