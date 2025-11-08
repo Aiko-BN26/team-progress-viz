@@ -27,6 +27,7 @@ import io.github.aikobn26.teamprogressviz.feature.organization.repository.Organi
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.UserOrganizationRepository;
 import io.github.aikobn26.teamprogressviz.feature.repository.entity.Repository;
 import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
+import io.github.aikobn26.teamprogressviz.feature.user.service.UserService;
 import io.github.aikobn26.teamprogressviz.shared.exception.ResourceConflictException;
 import io.github.aikobn26.teamprogressviz.shared.exception.ResourceNotFoundException;
 import io.github.aikobn26.teamprogressviz.shared.exception.ValidationException;

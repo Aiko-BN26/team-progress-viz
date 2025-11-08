@@ -1,4 +1,4 @@
-package io.github.aikobn26.teamprogressviz.service.organization;
+package io.github.aikobn26.teamprogressviz.feature.organization.service;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
