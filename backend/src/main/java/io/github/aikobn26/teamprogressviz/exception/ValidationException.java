@@ -1,0 +1,8 @@
+package io.github.aikobn26.teamprogressviz.exception;
+
+public class ValidationException extends RuntimeException {
+
+    public ValidationException(String message) {
+        super(message);
+    }
+}

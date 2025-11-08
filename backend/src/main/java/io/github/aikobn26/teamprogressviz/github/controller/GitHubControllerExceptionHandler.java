@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import io.github.aikobn26.teamprogressviz.github.exception.GitHubApiException;
 import jakarta.validation.ConstraintViolationException;
 
-@RestControllerAdvice(assignableTypes = GitHubOrganizationController.class)
+@RestControllerAdvice(basePackages = "io.github.aikobn26.teamprogressviz.github.controller")
 public class GitHubControllerExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GitHubControllerExceptionHandler.class);

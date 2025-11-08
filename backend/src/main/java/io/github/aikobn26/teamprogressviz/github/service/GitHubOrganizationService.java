@@ -55,6 +55,28 @@ public class GitHubOrganizationService {
                 .toList();
     }
 
+    public java.util.Optional<GitHubOrganization> getOrganization(String accessToken, String organization) {
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new IllegalArgumentException("GitHub access token must not be blank");
+        }
+        if (organization == null || organization.isBlank()) {
+            throw new IllegalArgumentException("organization must not be blank");
+        }
+
+        URI uri = UriComponentsBuilder.fromUri(apiProperties.baseUrl())
+                .pathSegment("orgs", organization)
+                .build()
+                .toUri();
+
+        GitHubOrganizationResponse response = executeGet(uri, GitHubOrganizationResponse.class, accessToken,
+                "Failed to fetch GitHub organization");
+
+        if (response == null) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.ofNullable(toOrganization(response));
+    }
+
     public List<GitHubRepository> listRepositories(String accessToken, String organization) {
         if (accessToken == null || accessToken.isBlank()) {
             throw new IllegalArgumentException("GitHub access token must not be blank");
@@ -95,6 +117,7 @@ public class GitHubOrganizationService {
         URI uri = UriComponentsBuilder.fromUri(apiProperties.baseUrl())
                 .pathSegment("orgs", organization, "members")
                 .queryParam("per_page", 100)
+        .queryParam("role", "all")
                 .build()
                 .toUri();
 
