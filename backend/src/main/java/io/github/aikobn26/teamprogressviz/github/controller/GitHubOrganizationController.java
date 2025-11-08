@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import io.github.aikobn26.teamprogressviz.auth.service.GitHubOAuthService;
+import io.github.aikobn26.teamprogressviz.feature.auth.service.GitHubOAuthService;
 import io.github.aikobn26.teamprogressviz.github.model.GitHubOrganization;
 import io.github.aikobn26.teamprogressviz.github.model.GitHubOrganizationMember;
 import io.github.aikobn26.teamprogressviz.github.model.GitHubRepository;

@@ -22,11 +22,12 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import io.github.aikobn26.teamprogressviz.auth.model.AuthenticatedUser;
-import io.github.aikobn26.teamprogressviz.auth.service.GitHubOAuthService;
-import io.github.aikobn26.teamprogressviz.job.JobDescriptor;
-import io.github.aikobn26.teamprogressviz.job.JobService;
-import io.github.aikobn26.teamprogressviz.job.JobStatus;
+import io.github.aikobn26.teamprogressviz.feature.auth.model.AuthenticatedUser;
+import io.github.aikobn26.teamprogressviz.feature.auth.service.GitHubOAuthService;
+import io.github.aikobn26.teamprogressviz.feature.job.controller.JobController;
+import io.github.aikobn26.teamprogressviz.feature.job.model.JobDescriptor;
+import io.github.aikobn26.teamprogressviz.feature.job.model.JobStatus;
+import io.github.aikobn26.teamprogressviz.feature.job.service.JobService;
 import io.github.aikobn26.teamprogressviz.shared.properties.FrontendProperties;
 
 @WebMvcTest(JobController.class)

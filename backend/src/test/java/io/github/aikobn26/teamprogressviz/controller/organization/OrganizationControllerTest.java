@@ -24,17 +24,19 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import io.github.aikobn26.teamprogressviz.auth.model.AuthenticatedUser;
-import io.github.aikobn26.teamprogressviz.auth.service.GitHubOAuthService;
-import io.github.aikobn26.teamprogressviz.entity.Organization;
-import io.github.aikobn26.teamprogressviz.entity.User;
-import io.github.aikobn26.teamprogressviz.github.model.GitHubOrganization;
-import io.github.aikobn26.teamprogressviz.service.organization.OrganizationService;
-import io.github.aikobn26.teamprogressviz.service.user.UserService;
+import io.github.aikobn26.teamprogressviz.feature.auth.model.AuthenticatedUser;
+import io.github.aikobn26.teamprogressviz.feature.auth.service.GitHubOAuthService;
+import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubOrganization;
+import io.github.aikobn26.teamprogressviz.feature.job.model.JobDescriptor;
+import io.github.aikobn26.teamprogressviz.feature.job.model.JobStatus;
+import io.github.aikobn26.teamprogressviz.feature.job.service.JobService;
+import io.github.aikobn26.teamprogressviz.feature.organization.controller.OrganizationController;
+import io.github.aikobn26.teamprogressviz.feature.organization.entity.Organization;
+import io.github.aikobn26.teamprogressviz.feature.organization.service.OrganizationService;
+import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
+import io.github.aikobn26.teamprogressviz.feature.user.service.UserOnboardingService;
+import io.github.aikobn26.teamprogressviz.feature.user.service.UserService;
 import io.github.aikobn26.teamprogressviz.shared.properties.FrontendProperties;
-import io.github.aikobn26.teamprogressviz.job.JobDescriptor;
-import io.github.aikobn26.teamprogressviz.job.JobService;
-import io.github.aikobn26.teamprogressviz.job.JobStatus;
 
 @WebMvcTest(OrganizationController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -204,6 +206,11 @@ class OrganizationControllerTest {
         @Bean
         UserService userService() {
             return Mockito.mock(UserService.class);
+        }
+
+        @Bean
+        UserOnboardingService userOnboardingService() {
+            return Mockito.mock(UserOnboardingService.class);
         }
 
         @Bean

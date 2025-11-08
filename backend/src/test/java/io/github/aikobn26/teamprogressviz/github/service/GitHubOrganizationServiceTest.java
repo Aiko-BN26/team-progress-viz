@@ -15,11 +15,12 @@ import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import io.github.aikobn26.teamprogressviz.github.exception.GitHubApiException;
-import io.github.aikobn26.teamprogressviz.github.model.GitHubOrganization;
-import io.github.aikobn26.teamprogressviz.github.model.GitHubOrganizationMember;
-import io.github.aikobn26.teamprogressviz.github.model.GitHubRepository;
-import io.github.aikobn26.teamprogressviz.github.properties.GitHubApiProperties;
+import io.github.aikobn26.teamprogressviz.feature.github.exception.GitHubApiException;
+import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubOrganization;
+import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubOrganizationMember;
+import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubRepository;
+import io.github.aikobn26.teamprogressviz.feature.github.properties.GitHubApiProperties;
+import io.github.aikobn26.teamprogressviz.feature.github.service.GitHubOrganizationService;
 import reactor.core.publisher.Mono;
 
 class GitHubOrganizationServiceTest {
