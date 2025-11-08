@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   AlertCircle,
+  ArrowLeft,
   ArrowUpRight,
   CalendarDays,
   Loader2,
@@ -136,7 +137,16 @@ export default async function OrganizationDetailPage({ params }: PageProps) {
     : 0;
 
   return (
-    <main className="space-y-8 px-6 py-10">
+    <main className="space-y-8 px-6 py-7">
+      <div>
+        <Link
+          href="/organizations"
+          className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium text-muted-foreground transition hover:bg-muted"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>組織一覧へ戻る</span>
+        </Link>
+      </div>
       <section className="flex flex-col gap-4 rounded-2xl border bg-card p-6 shadow-sm md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-4">
           <div className="h-16 w-16 overflow-hidden rounded-full border bg-muted">
