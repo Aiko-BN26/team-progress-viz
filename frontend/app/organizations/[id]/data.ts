@@ -64,13 +64,10 @@ export async function loadOrganizationViewData(
   organizationId: string,
 ): Promise<OrganizationViewData | null> {
   const mockDataPromise = fetchMockOrganizationViewData(organizationId, { simulateDelay: false });
-  const today = new Date().toISOString().slice(0, 10);
 
   const [detailResult, statusResult, userResult] = await Promise.allSettled([
     backendFetchJson<ApiOrganizationDetailResponse>(`/api/organizations/${organizationId}`),
-    backendFetchJson<StatusListItemResponse[]>(
-      `/api/organizations/${organizationId}/statuses?date=${today}`,
-    ),
+    backendFetchJson<StatusListItemResponse[]>(`/api/organizations/${organizationId}/statuses`),
     backendFetchJson<UserResponse>(`/api/users/me`),
   ]);
 
