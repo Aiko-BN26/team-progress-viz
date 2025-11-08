@@ -33,14 +33,8 @@ export default function Home() {
   } else {
 
     return(
-      // organization一覧
       <div className="space-y-4 p-6">
-        <p className="text-lg font-semibold">organization一覧</p>
-        <div className="flex flex-wrap gap-3">
-          <Button>新規作成</Button>
-          <Button variant="secondary">インポート</Button>
-          <Button variant="outline">再読み込み</Button>
-        </div>
+        GitHubのアカウントにてログインします...
       </div>
     );
   }
