@@ -6,11 +6,9 @@ import {
   ArrowUpRight,
   CalendarDays,
   Loader2,
-  RefreshCcw,
   Users,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -20,7 +18,6 @@ import {
 } from "@/components/ui/card";
 
 import { ActivityChart } from "@/components/organization/activity-chart";
-import { CopyShareButton } from "@/components/organization/copy-share-button";
 import { MemberStatusBoard } from "@/components/organization/member-status-board";
 import { MyStatusCard } from "@/components/organization/my-status-card";
 import { loadOrganizationViewData } from "./data";
@@ -158,13 +155,6 @@ export default async function OrganizationDetailPage({ params }: PageProps) {
               最終更新: {formatDateTime(detail.lastActivity, detail.timezone)}
             </p>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <CopyShareButton url={detail.publicShareUrl} />
-          <Button variant="outline" size="sm" type="button">
-            <RefreshCcw className="h-4 w-4" />
-            再読み込み
-          </Button>
         </div>
       </section>
 
