@@ -132,8 +132,20 @@ type ActivityBucket = {
 export async function loadOrganizationViewData(
   organizationId: string,
 ): Promise<OrganizationViewData | null> {
-  if (!organizationId) {
-    return null;
+  const mockDataPromise = fetchMockOrganizationViewData(organizationId, { simulateDelay: false });
+
+  const [detailResult, statusResult, userResult] = await Promise.allSettled([
+    backendFetchJson<ApiOrganizationDetailResponse>(`/api/organizations/${organizationId}`),
+    backendFetchJson<StatusListItemResponse[]>(`/api/organizations/${organizationId}/statuses`),
+    backendFetchJson<UserResponse>(`/api/users/me`),
+  ]);
+
+  if (
+    detailResult.status === "rejected" ||
+    !detailResult.value.data ||
+    detailResult.value.status === 404
+  ) {
+    return mockDataPromise;
   }
 
   try {

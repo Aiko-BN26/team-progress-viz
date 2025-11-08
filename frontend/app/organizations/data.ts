@@ -51,7 +51,6 @@ export async function loadOrganizations(): Promise<OrganizationListItem[]> {
       return [];
     }
 
-    const today = new Date().toISOString().slice(0, 10);
     const fallbackMap = buildFallbackMap();
 
     const enriched = await Promise.all(
@@ -59,7 +58,7 @@ export async function loadOrganizations(): Promise<OrganizationListItem[]> {
         const [detailResult, statusResult] = await Promise.allSettled([
           backendFetchJson<ApiOrganizationDetailResponse>(`/api/organizations/${summary.id}`),
           backendFetchJson<StatusListItemResponse[]>(
-            `/api/organizations/${summary.id}/statuses?date=${today}`,
+            `/api/organizations/${summary.id}/statuses`,
           ),
         ]);
 
