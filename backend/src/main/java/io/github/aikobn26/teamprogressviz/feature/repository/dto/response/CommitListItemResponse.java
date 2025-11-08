@@ -1,4 +1,4 @@
-package io.github.aikobn26.teamprogressviz.feature.organization.dto.response;
+package io.github.aikobn26.teamprogressviz.feature.repository.dto.response;
 
 import java.time.OffsetDateTime;
 
