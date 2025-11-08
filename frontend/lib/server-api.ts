@@ -1,5 +1,18 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
+async function resolveApiBaseUrl() {
+  const configured = process.env.NEXT_PUBLIC_API_URL ?? "/api/backend";
+  if (configured.startsWith("http://") || configured.startsWith("https://")) {
+    return configured.replace(/\/$/, "");
+  }
+  const requestHeaders = await headers();
+  const host =
+    requestHeaders.get("x-forwarded-host") ??
+    requestHeaders.get("host") ??
+    "localhost:3000";
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? "http";
+  return `${protocol}://${host}${configured}`.replace(/\/$/, "");
+}
 
 async function buildCookieHeader() {
   const cookieStore = await cookies();
@@ -19,7 +32,7 @@ export async function backendFetch(path: string, init?: RequestInit) {
     headers.set("Cookie", cookieHeader);
   }
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
+  const response = await fetch(`${await resolveApiBaseUrl()}${path}`, {
       ...init,
       headers,
       cache: "no-store",
