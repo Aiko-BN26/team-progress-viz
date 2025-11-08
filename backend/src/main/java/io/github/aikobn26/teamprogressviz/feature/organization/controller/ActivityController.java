@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import io.github.aikobn26.teamprogressviz.feature.auth.service.GitHubOAuthService;
 import io.github.aikobn26.teamprogressviz.feature.organization.dto.response.ActivitySummaryItemResponse;
 import io.github.aikobn26.teamprogressviz.feature.organization.service.ActivityService;
+import io.github.aikobn26.teamprogressviz.feature.repository.dto.response.CommitFeedResponse;
 import io.github.aikobn26.teamprogressviz.feature.user.service.UserService;
 import io.github.aikobn26.teamprogressviz.shared.exception.ValidationException;
 import jakarta.servlet.http.HttpSession;

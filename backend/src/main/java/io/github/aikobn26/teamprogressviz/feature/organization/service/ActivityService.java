@@ -19,6 +19,9 @@ import io.github.aikobn26.teamprogressviz.feature.organization.dto.response.Acti
 import io.github.aikobn26.teamprogressviz.feature.organization.entity.ActivityDaily;
 import io.github.aikobn26.teamprogressviz.feature.organization.entity.Organization;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.ActivityDailyRepository;
+import io.github.aikobn26.teamprogressviz.feature.repository.dto.response.CommitFeedResponse;
+import io.github.aikobn26.teamprogressviz.feature.repository.entity.GitCommit;
+import io.github.aikobn26.teamprogressviz.feature.repository.repository.GitCommitRepository;
 import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
 import io.github.aikobn26.teamprogressviz.shared.exception.ValidationException;
 import lombok.RequiredArgsConstructor;

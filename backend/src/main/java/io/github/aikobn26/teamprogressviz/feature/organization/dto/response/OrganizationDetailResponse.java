@@ -6,8 +6,14 @@ import java.util.Objects;
 
 import io.github.aikobn26.teamprogressviz.feature.organization.entity.Organization;
 import io.github.aikobn26.teamprogressviz.feature.organization.service.OrganizationService.ActivitySummary;
+import io.github.aikobn26.teamprogressviz.feature.organization.service.OrganizationService.CommentDetail;
+import io.github.aikobn26.teamprogressviz.feature.organization.service.OrganizationService.CommitDetail;
+import io.github.aikobn26.teamprogressviz.feature.organization.service.OrganizationService.MemberDetail;
 import io.github.aikobn26.teamprogressviz.feature.organization.service.OrganizationService.OrganizationDetail;
+import io.github.aikobn26.teamprogressviz.feature.organization.service.OrganizationService.PullRequestDetail;
 import io.github.aikobn26.teamprogressviz.feature.organization.service.OrganizationService.PullRequestSummary;
+import io.github.aikobn26.teamprogressviz.feature.organization.service.OrganizationService.SimpleUser;
+import io.github.aikobn26.teamprogressviz.feature.repository.entity.Repository;
 
 public record OrganizationDetailResponse(
         OrganizationInfo organization,

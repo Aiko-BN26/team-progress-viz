@@ -18,9 +18,12 @@ import io.github.aikobn26.teamprogressviz.feature.organization.dto.response.Stat
 import io.github.aikobn26.teamprogressviz.feature.organization.entity.ActivityDaily;
 import io.github.aikobn26.teamprogressviz.feature.organization.entity.DailyStatus;
 import io.github.aikobn26.teamprogressviz.feature.organization.entity.Organization;
+import io.github.aikobn26.teamprogressviz.feature.organization.entity.UserOrganization;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.ActivityDailyRepository;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.DailyStatusRepository;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.UserOrganizationRepository;
+import io.github.aikobn26.teamprogressviz.feature.repository.entity.PullRequest;
+import io.github.aikobn26.teamprogressviz.feature.repository.repository.PullRequestRepository;
 import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
 import io.github.aikobn26.teamprogressviz.shared.exception.ForbiddenException;
 import io.github.aikobn26.teamprogressviz.shared.exception.ResourceNotFoundException;

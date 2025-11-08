@@ -25,9 +25,16 @@ import io.github.aikobn26.teamprogressviz.feature.organization.entity.UserOrgani
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.CommentRepository;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.OrganizationRepository;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.UserOrganizationRepository;
+import io.github.aikobn26.teamprogressviz.feature.repository.entity.GitCommit;
+import io.github.aikobn26.teamprogressviz.feature.repository.entity.PullRequest;
 import io.github.aikobn26.teamprogressviz.feature.repository.entity.Repository;
+import io.github.aikobn26.teamprogressviz.feature.repository.repository.GitCommitRepository;
+import io.github.aikobn26.teamprogressviz.feature.repository.repository.PullRequestRepository;
+import io.github.aikobn26.teamprogressviz.feature.repository.repository.RepositoryRepository;
+import io.github.aikobn26.teamprogressviz.feature.repository.service.RepositoryActivitySyncService;
 import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
 import io.github.aikobn26.teamprogressviz.feature.user.service.UserService;
+import io.github.aikobn26.teamprogressviz.shared.exception.ForbiddenException;
 import io.github.aikobn26.teamprogressviz.shared.exception.ResourceConflictException;
 import io.github.aikobn26.teamprogressviz.shared.exception.ResourceNotFoundException;
 import io.github.aikobn26.teamprogressviz.shared.exception.ValidationException;

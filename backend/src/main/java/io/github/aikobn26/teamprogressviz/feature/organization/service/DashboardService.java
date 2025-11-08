@@ -15,6 +15,8 @@ import io.github.aikobn26.teamprogressviz.feature.organization.entity.DailyStatu
 import io.github.aikobn26.teamprogressviz.feature.organization.entity.Organization;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.CommentRepository;
 import io.github.aikobn26.teamprogressviz.feature.organization.repository.DailyStatusRepository;
+import io.github.aikobn26.teamprogressviz.feature.repository.entity.GitCommit;
+import io.github.aikobn26.teamprogressviz.feature.repository.repository.GitCommitRepository;
 import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
 import lombok.RequiredArgsConstructor;
 

@@ -5,7 +5,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.nimbusds.openid.connect.sdk.assurance.evidences.Organization;
+import io.github.aikobn26.teamprogressviz.feature.organization.entity.Organization;
 
 
 @Repository
