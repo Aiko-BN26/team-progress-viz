@@ -23,7 +23,7 @@ import { ActivityChart } from "@/components/organization/activity-chart";
 import { CopyShareButton } from "@/components/organization/copy-share-button";
 import { MemberStatusBoard } from "@/components/organization/member-status-board";
 import { MyStatusCard } from "@/components/organization/my-status-card";
-import { fetchOrganizationViewData } from "./mock-data";
+import { loadOrganizationViewData } from "./data";
 import type { CommitActivity, OrganizationViewData } from "./types";
 
 type PageProps = {
@@ -81,9 +81,7 @@ const RecentCommitsCard = ({
   <Card className="h-full">
     <CardHeader>
       <CardTitle className="text-base">最近のコミット/PR</CardTitle>
-      <CardDescription>
-        GitHubの最新活動から概要のみを表示しています（モック）
-      </CardDescription>
+      <CardDescription>GitHubの最新活動から概要のみを表示しています</CardDescription>
     </CardHeader>
     <CardContent>
       {commits.length === 0 ? (
@@ -117,7 +115,7 @@ const RecentCommitsCard = ({
 );
 
 async function getPageData(organizationId: string): Promise<OrganizationViewData | null> {
-  return fetchOrganizationViewData(organizationId);
+  return loadOrganizationViewData(organizationId);
 }
 
 export default async function OrganizationDetailPage({ params }: PageProps) {
@@ -165,7 +163,7 @@ export default async function OrganizationDetailPage({ params }: PageProps) {
           <CopyShareButton url={detail.publicShareUrl} />
           <Button variant="outline" size="sm" type="button">
             <RefreshCcw className="h-4 w-4" />
-            再読み込み(モック)
+            再読み込み
           </Button>
         </div>
       </section>

@@ -13,50 +13,10 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-
-type OrganizationSummary = {
-  id: string;
-  name: string;
-  description: string;
-  memberCount: number;
-  activeToday: number;
-  pendingStatusCount: number;
-  lastActivity: string;
-  avatarUrl: string;
-};
-
-const mockOrganizations: OrganizationSummary[] = [
-  {
-    id: "astro-lab",
-    name: "Astro Lab",
-    description: "週1で集まる社会人LTコミュニティ",
-    memberCount: 6,
-    activeToday: 4,
-    pendingStatusCount: 1,
-    lastActivity: "2025-11-05T14:25:00+09:00",
-    avatarUrl: "https://avatars.githubusercontent.com/u/9919?s=64&v=4",
-  },
-  {
-    id: "campus-dev",
-    name: "Campus Dev",
-    description: "学内ハッカソン向け実験チーム",
-    memberCount: 9,
-    activeToday: 7,
-    pendingStatusCount: 0,
-    lastActivity: "2025-11-04T23:40:00+09:00",
-    avatarUrl: "https://avatars.githubusercontent.com/u/1342004?s=64&v=4",
-  },
-  {
-    id: "fox-systems",
-    name: "Fox Systems",
-    description: "受託案件の週次レビュー用",
-    memberCount: 4,
-    activeToday: 2,
-    pendingStatusCount: 2,
-    lastActivity: "2025-11-06T08:10:00+09:00",
-    avatarUrl: "https://avatars.githubusercontent.com/u/7569241?s=64&v=4",
-  },
-];
+import { loadOrganizations } from "./data";
+import type { OrganizationListItem } from "./types";
+import { refreshOrganizationsAction, registerOrganizationAction } from "./actions";
+import { AddOrganizationDialog } from "./add-organization-dialog";
 
 const formatActivityTime = (isoDate: string) =>
   new Intl.DateTimeFormat("ja-JP", {
@@ -67,7 +27,7 @@ const formatActivityTime = (isoDate: string) =>
 const OrganizationCard = ({
   organization,
 }: {
-  organization: OrganizationSummary;
+  organization: OrganizationListItem;
 }) => (
   <Link href={`/organizations/${organization.id}`} className="block">
     <Card className="h-full transition hover:border-primary/50 hover:shadow-lg">
@@ -111,8 +71,9 @@ const OrganizationCard = ({
   </Link>
 );
 
-export default function OrganizationsPage() {
-  const hasOrganizations = mockOrganizations.length > 0;
+export default async function OrganizationsPage() {
+  const organizations = await loadOrganizations();
+  const hasOrganizations = organizations.length > 0;
 
   return (
     <main className="space-y-8 px-6 py-10">
@@ -126,16 +87,18 @@ export default function OrganizationsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button asChild>
-            <Link href="/enroll-organizations">Organizationを追加</Link>
-          </Button>
-          <Button variant="outline">再読み込み</Button>
+          <AddOrganizationDialog registerOrganization={registerOrganizationAction} />
+          <form action={refreshOrganizationsAction}>
+            <Button variant="outline" type="submit">
+              再読み込み
+            </Button>
+          </form>
         </div>
       </header>
 
       {hasOrganizations ? (
         <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          {mockOrganizations.map((org) => (
+          {organizations.map((org) => (
             <OrganizationCard key={org.id} organization={org} />
           ))}
         </section>
