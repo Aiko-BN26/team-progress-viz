@@ -17,6 +17,7 @@ type Props = {
 
 const FILTERS = [
   { id: "all", label: "全員" },
+  { id: "pending", label: "未提出" },
   { id: "完了", label: "完了" },
   { id: "集中", label: "集中" },
   { id: "休み", label: "休み" },
@@ -41,7 +42,13 @@ export function MemberStatusBoard({ members, timezone }: Props) {
         ? member.displayName.toLowerCase().includes(normalizedQuery)
         : true;
       const matchFilter =
-        filter === "all" ? true : member.status === filter;
+        filter === "all"
+          ? true
+          : filter === "pending"
+          ? member.pending
+          : member.pending
+          ? false
+          : member.status === filter;
       return matchQuery && matchFilter;
     });
   }, [filter, members, query]);
@@ -71,7 +78,7 @@ export function MemberStatusBoard({ members, timezone }: Props) {
               type="button"
               size="sm"
               variant={filter === option.id ? "default" : "outline"}
-              className="gap-1 px-3"
+              className="gap-1 px-2"
               onClick={() => setFilter(option.id)}
             >
               <Filter className="h-3.5 w-3.5" />
@@ -96,58 +103,76 @@ export function MemberStatusBoard({ members, timezone }: Props) {
               該当するメンバーがいません。
             </p>
           ) : (
-            filteredMembers.map((member) => (
-              <div
-                key={member.memberId}
-                className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 overflow-hidden rounded-full bg-muted">
-                    <Image
-                      src={member.avatarUrl}
-                      alt={`${member.displayName} avatar`}
-                      width={48}
-                      height={48}
-                      className="h-full w-full object-cover"
-                    />
+            filteredMembers.map((member) => {
+              const statusLabel = member.pending ? "未提出" : member.status;
+              const statusStyle = member.pending
+                ? "bg-slate-100 text-slate-700"
+                : STATUS_STYLES[member.status];
+              return (
+                <div
+                  key={member.memberId}
+                  className={cn(
+                    "flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center",
+                    member.pending ? "bg-slate-50 border-slate-200 opacity-80" : "",
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 overflow-hidden rounded-full bg-muted">
+                      <Image
+                        src={member.avatarUrl}
+                        alt={`${member.displayName} avatar`}
+                        width={48}
+                        height={48}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="font-medium leading-tight">{member.displayName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        最終提出: {formatDateTime(member.lastSubmittedAt)}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium leading-tight">{member.displayName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      最終提出: {formatDateTime(member.lastSubmittedAt)}
+                  <div className="flex flex-1 flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+                    <span
+                      className={cn(
+                        "w-fit rounded-full px-2 py-1 text-xs font-medium",
+                        statusStyle,
+                      )}
+                    >
+                      {statusLabel}
+                    </span>
+                    <p className="text-muted-foreground">
+                      {member.statusMessage || "コメントなし"}
                     </p>
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                      <div className="flex flex-col gap-0 leading-tight">
+                        <div className="grid w-48 grid-cols-3 gap-x-4 text-sm justify-items-center">
+                          <span>コミット</span>
+                          <span>稼働</span>
+                          <span>連続</span>
+                        </div>
+                        <div className="grid w-48 grid-cols-3 gap-x-4 text-base font-semibold text-foreground justify-items-center">
+                          <span>{member.commitCount}</span>
+                          <span>{member.capacityHours ?? "--"}h</span>
+                          <span>{member.streakDays}日</span>
+                        </div>
+                      </div>
+                      {member.latestPrUrl ? (
+                        <Link
+                          href={member.latestPrUrl}
+                          className="text-primary underline-offset-4 hover:underline"
+                        >
+                          最新PRを開く
+                        </Link>
+                      ) : (
+                        <span>PRなし</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex flex-1 flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-                  <span
-                    className={cn(
-                      "w-fit rounded-full px-2 py-1 text-xs font-medium",
-                      STATUS_STYLES[member.status],
-                    )}
-                  >
-                    {member.status}
-                  </span>
-                  <p className="text-muted-foreground">
-                    {member.statusMessage || "コメントなし"}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <span>コミット {member.commitCount}</span>
-                    <span>稼働 {member.capacityHours ?? "--"}h</span>
-                    <span>連続 {member.streakDays}日</span>
-                    {member.latestPrUrl ? (
-                      <Link
-                        href={member.latestPrUrl}
-                        className="text-primary underline-offset-4 hover:underline"
-                      >
-                        最新PRを開く
-                      </Link>
-                    ) : (
-                      <span>PRなし</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </CardContent>
