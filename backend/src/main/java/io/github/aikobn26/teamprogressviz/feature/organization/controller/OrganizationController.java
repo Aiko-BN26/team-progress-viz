@@ -89,9 +89,9 @@ public class OrganizationController {
 
         var user = userService.ensureUserExists(authenticated.get());
         var result = organizationService.registerOrganization(user, request.login(), request.defaultLinkUrl(), accessToken.get());
-        var job = jobService.submit("job-sync-org", () ->
-                organizationService.synchronizeOrganization(result.organization().getId(), accessToken.get())
-        );
+    var job = jobService.submit("job-sync-org", context ->
+        organizationService.synchronizeOrganization(result.organization().getId(), accessToken.get(), context::updateProgress)
+    );
 
         var response = new OrganizationRegistrationResponse(
                 result.organization().getId(),
@@ -150,9 +150,9 @@ public class OrganizationController {
         var user = userService.ensureUserExists(authenticated.get());
         organizationService.getAccessibleOrganization(user, organizationId);
 
-        var job = jobService.submit("job-sync-org", () ->
-                organizationService.synchronizeOrganization(organizationId, accessToken.get())
-        );
+    var job = jobService.submit("job-sync-org", context ->
+        organizationService.synchronizeOrganization(organizationId, accessToken.get(), context::updateProgress)
+    );
 
         var response = new JobSubmissionResponse(job.id(), job.status().name().toLowerCase(Locale.ROOT));
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);

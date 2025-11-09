@@ -12,5 +12,6 @@ public record JobStatusResponse(
         OffsetDateTime createdAt,
         OffsetDateTime startedAt,
         OffsetDateTime finishedAt,
+        int progress,
         String errorMessage
 ) {}
