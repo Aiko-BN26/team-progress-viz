@@ -130,10 +130,19 @@ export function MemberStatusBoard({ members, timezone }: Props) {
                   <p className="text-muted-foreground">
                     {member.statusMessage || "コメントなし"}
                   </p>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <span>コミット {member.commitCount}</span>
-                    <span>稼働 {member.capacityHours ?? "--"}h</span>
-                    <span>連続 {member.streakDays}日</span>
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                    <div className="flex flex-col gap-0 leading-tight">
+                      <div className="grid w-48 grid-cols-3 gap-x-4 text-sm">
+                        <span>コミット</span>
+                        <span>稼働</span>
+                        <span>連続</span>
+                      </div>
+                      <div className="grid w-48 grid-cols-3 gap-x-4 text-base font-semibold text-foreground">
+                        <span>{member.commitCount}</span>
+                        <span>{member.capacityHours ?? "--"}h</span>
+                        <span>{member.streakDays}日</span>
+                      </div>
+                    </div>
                     {member.latestPrUrl ? (
                       <Link
                         href={member.latestPrUrl}
