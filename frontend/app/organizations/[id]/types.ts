@@ -36,6 +36,7 @@ export type MemberStatus = {
   capacityHours: number | null;
   streakDays: number;
   latestPrUrl: string | null;
+  pending?: boolean;
 };
 
 export type ActivityPoint = {
