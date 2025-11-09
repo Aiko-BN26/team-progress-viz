@@ -611,10 +611,14 @@ public class OrganizationService {
             }
             Repository repository = existing.remove(gitHubRepository.id());
             if (repository == null) {
-                repository = new Repository();
-                repository.setGithubId(gitHubRepository.id());
-                repository.setOrganization(organization);
+                repository = repositoryRepository
+                        .findByOrganizationIdAndGithubId(organization.getId(), gitHubRepository.id())
+                        .orElseGet(Repository::new);
             }
+            if (repository.getGithubId() == null) {
+                repository.setGithubId(gitHubRepository.id());
+            }
+            repository.setOrganization(organization);
             updateRepositoryFields(repository, gitHubRepository);
             repository.setDeletedAt(null);
             repositoryRepository.save(repository);
