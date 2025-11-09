@@ -27,6 +27,8 @@ import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
 import io.github.aikobn26.teamprogressviz.shared.exception.ResourceNotFoundException;
 import io.github.aikobn26.teamprogressviz.shared.exception.ValidationException;
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 @RequiredArgsConstructor
@@ -67,6 +69,15 @@ public class PullRequestService {
                 .toList();
     }
 
+    public Mono<List<PullRequestListItemResponse>> listPullRequestsReactive(User user,
+        Long repositoryId,
+        String state,
+        Integer limit,
+        Integer page) {
+    return Mono.fromCallable(() -> listPullRequests(user, repositoryId, state, limit, page))
+        .subscribeOn(Schedulers.boundedElastic());
+    }
+
     public PullRequestDetailResponse getPullRequest(User user,
             Long repositoryId,
             Integer pullNumber) {
@@ -75,6 +86,13 @@ public class PullRequestService {
                 .findByRepositoryIdAndNumberAndDeletedAtIsNull(repository.getId(), pullNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Pull request not found"));
         return toDetail(pullRequest);
+    }
+
+    public Mono<PullRequestDetailResponse> getPullRequestReactive(User user,
+        Long repositoryId,
+        Integer pullNumber) {
+    return Mono.fromCallable(() -> getPullRequest(user, repositoryId, pullNumber))
+        .subscribeOn(Schedulers.boundedElastic());
     }
 
     public List<PullRequestFileResponse> listFiles(User user,
@@ -90,6 +108,13 @@ public class PullRequestService {
                 .stream()
                 .map(this::toFileResponse)
                 .toList();
+    }
+
+    public Mono<List<PullRequestFileResponse>> listFilesReactive(User user,
+        Long repositoryId,
+        Integer pullNumber) {
+    return Mono.fromCallable(() -> listFiles(user, repositoryId, pullNumber))
+        .subscribeOn(Schedulers.boundedElastic());
     }
 
     public PullRequestFeedResponse fetchFeed(User user,
@@ -121,6 +146,14 @@ public class PullRequestService {
         }
 
         return new PullRequestFeedResponse(items, nextCursor);
+    }
+
+    public Mono<PullRequestFeedResponse> fetchFeedReactive(User user,
+            Long organizationId,
+            Long cursor,
+            Integer limit) {
+        return Mono.fromCallable(() -> fetchFeed(user, organizationId, cursor, limit))
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     public Repository requireAccessibleRepository(User user, Long repositoryId) {

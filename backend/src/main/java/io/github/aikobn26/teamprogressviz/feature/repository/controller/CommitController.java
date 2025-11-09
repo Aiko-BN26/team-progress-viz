@@ -16,9 +16,12 @@ import io.github.aikobn26.teamprogressviz.feature.repository.dto.response.Commit
 import io.github.aikobn26.teamprogressviz.feature.repository.dto.response.CommitFileResponse;
 import io.github.aikobn26.teamprogressviz.feature.repository.dto.response.CommitListItemResponse;
 import io.github.aikobn26.teamprogressviz.feature.repository.service.CommitService;
+import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
 import io.github.aikobn26.teamprogressviz.feature.user.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @RestController
 @RequestMapping("/api")
@@ -31,42 +34,44 @@ public class CommitController {
     private final CommitService commitService;
 
     @GetMapping("/repositories/{repositoryId}/commits")
-    public ResponseEntity<List<CommitListItemResponse>> list(@PathVariable Long repositoryId,
-                                                             @RequestParam(required = false) Integer limit,
-                                                             @RequestParam(required = false) Integer page,
-                                                             HttpSession session) {
-        var authenticated = gitHubOAuthService.getAuthenticatedUser(session);
-        if (authenticated.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        var user = userService.ensureUserExists(authenticated.get());
-        var response = commitService.listCommits(user, repositoryId, limit, page);
-        return ResponseEntity.ok(response);
+    public Mono<ResponseEntity<List<CommitListItemResponse>>> list(@PathVariable Long repositoryId,
+                                                                   @RequestParam(required = false) Integer limit,
+                                                                   @RequestParam(required = false) Integer page,
+                                                                   HttpSession session) {
+        return resolveUser(session)
+                .flatMap(user -> commitService.listCommitsReactive(user, repositoryId, limit, page)
+                        .map(ResponseEntity::ok))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()));
     }
 
     @GetMapping("/repositories/{repositoryId}/commits/{sha}")
-    public ResponseEntity<CommitDetailResponse> detail(@PathVariable Long repositoryId,
-                                                       @PathVariable String sha,
-                                                       HttpSession session) {
-        var authenticated = gitHubOAuthService.getAuthenticatedUser(session);
-        if (authenticated.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        var user = userService.ensureUserExists(authenticated.get());
-        var response = commitService.getCommit(user, repositoryId, sha);
-        return ResponseEntity.ok(response);
+    public Mono<ResponseEntity<CommitDetailResponse>> detail(@PathVariable Long repositoryId,
+                                                             @PathVariable String sha,
+                                                             HttpSession session) {
+        return resolveUser(session)
+                .flatMap(user -> commitService.getCommitReactive(user, repositoryId, sha)
+                        .map(ResponseEntity::ok))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()));
     }
 
     @GetMapping("/repositories/{repositoryId}/commits/{sha}/files")
-    public ResponseEntity<List<CommitFileResponse>> files(@PathVariable Long repositoryId,
-                                                          @PathVariable String sha,
-                                                          HttpSession session) {
-        var authenticated = gitHubOAuthService.getAuthenticatedUser(session);
-        if (authenticated.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        var user = userService.ensureUserExists(authenticated.get());
-        var response = commitService.listFiles(user, repositoryId, sha);
-        return ResponseEntity.ok(response);
+    public Mono<ResponseEntity<List<CommitFileResponse>>> files(@PathVariable Long repositoryId,
+                                                                @PathVariable String sha,
+                                                                HttpSession session) {
+        return resolveUser(session)
+                .flatMap(user -> commitService.listFilesReactive(user, repositoryId, sha)
+                        .map(ResponseEntity::ok))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()));
+    }
+
+    private Mono<User> resolveUser(HttpSession session) {
+        return Mono.defer(() -> {
+            var authenticated = gitHubOAuthService.getAuthenticatedUser(session);
+            if (authenticated.isEmpty()) {
+                return Mono.empty();
+            }
+            return Mono.fromCallable(() -> userService.ensureUserExists(authenticated.get()))
+                    .subscribeOn(Schedulers.boundedElastic());
+        });
     }
 }

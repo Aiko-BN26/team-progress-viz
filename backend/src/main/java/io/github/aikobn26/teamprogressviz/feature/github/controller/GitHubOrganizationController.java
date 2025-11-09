@@ -18,6 +18,7 @@ import io.github.aikobn26.teamprogressviz.feature.github.service.GitHubOrganizat
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/github")
@@ -29,36 +30,42 @@ public class GitHubOrganizationController {
     private final GitHubOAuthService gitHubOAuthService;
 
     @GetMapping("/organizations")
-    public ResponseEntity<List<GitHubOrganization>> listOrganizations(HttpSession session) {
-        var token = gitHubOAuthService.getAccessToken(session);
-        if (token.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        var organizations = organizationService.listOrganizations(token.get());
-        return ResponseEntity.ok(organizations);
+    public Mono<ResponseEntity<List<GitHubOrganization>>> listOrganizations(HttpSession session) {
+        return Mono.defer(() -> {
+            var token = gitHubOAuthService.getAccessToken(session);
+            if (token.isEmpty()) {
+                return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+            }
+            return organizationService.listOrganizationsReactive(token.get())
+                    .map(ResponseEntity::ok);
+        });
     }
 
     @GetMapping("/organizations/{organization}/repositories")
-    public ResponseEntity<List<GitHubRepository>> listRepositories(
+    public Mono<ResponseEntity<List<GitHubRepository>>> listRepositories(
             @PathVariable("organization") @NotBlank String organization,
             HttpSession session) {
-        var token = gitHubOAuthService.getAccessToken(session);
-        if (token.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        var repositories = organizationService.listRepositories(token.get(), organization);
-        return ResponseEntity.ok(repositories);
+        return Mono.defer(() -> {
+            var token = gitHubOAuthService.getAccessToken(session);
+            if (token.isEmpty()) {
+                return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+            }
+            return organizationService.listRepositoriesReactive(token.get(), organization)
+                    .map(ResponseEntity::ok);
+        });
     }
 
     @GetMapping("/organizations/{organization}/members")
-    public ResponseEntity<List<GitHubOrganizationMember>> listMembers(
+    public Mono<ResponseEntity<List<GitHubOrganizationMember>>> listMembers(
             @PathVariable("organization") @NotBlank String organization,
             HttpSession session) {
-        var token = gitHubOAuthService.getAccessToken(session);
-        if (token.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        var members = organizationService.listMembers(token.get(), organization);
-        return ResponseEntity.ok(members);
+        return Mono.defer(() -> {
+            var token = gitHubOAuthService.getAccessToken(session);
+            if (token.isEmpty()) {
+                return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+            }
+            return organizationService.listMembersReactive(token.get(), organization)
+                    .map(ResponseEntity::ok);
+        });
     }
 }

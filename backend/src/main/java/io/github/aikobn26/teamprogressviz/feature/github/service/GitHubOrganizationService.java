@@ -20,6 +20,7 @@ import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubOrganizatio
 import io.github.aikobn26.teamprogressviz.feature.github.model.GitHubRepository;
 import io.github.aikobn26.teamprogressviz.feature.github.properties.GitHubApiProperties;
 import lombok.AllArgsConstructor;
+import reactor.core.publisher.Mono;
 
 @Service
 @AllArgsConstructor
@@ -31,125 +32,138 @@ public class GitHubOrganizationService {
     private final WebClient webClient;
     private final GitHubApiProperties apiProperties;
 
+    public Mono<List<GitHubOrganization>> listOrganizationsReactive(String accessToken) {
+        return Mono.defer(() -> {
+            if (accessToken == null || accessToken.isBlank()) {
+                return Mono.error(new IllegalArgumentException("GitHub access token must not be blank"));
+            }
+
+            URI uri = UriComponentsBuilder.fromUri(apiProperties.baseUrl())
+                    .pathSegment("user", "orgs")
+                    .queryParam("per_page", 100)
+                    .build()
+                    .toUri();
+
+            return executeGetReactive(uri, GitHubOrganizationResponse[].class, accessToken,
+                    "Failed to fetch GitHub organizations")
+                    .defaultIfEmpty(new GitHubOrganizationResponse[0])
+                    .map(response -> Arrays.stream(response)
+                            .filter(Objects::nonNull)
+                            .map(GitHubOrganizationService::toOrganization)
+                            .toList());
+        });
+    }
+
     public List<GitHubOrganization> listOrganizations(String accessToken) {
-        if (accessToken == null || accessToken.isBlank()) {
-            throw new IllegalArgumentException("GitHub access token must not be blank");
-        }
+        return listOrganizationsReactive(accessToken).blockOptional().orElse(List.of());
+    }
 
-        URI uri = UriComponentsBuilder.fromUri(apiProperties.baseUrl())
-                .pathSegment("user", "orgs")
-                .queryParam("per_page", 100)
-                .build()
-                .toUri();
+    public Mono<java.util.Optional<GitHubOrganization>> getOrganizationReactive(String accessToken, String organization) {
+        return Mono.defer(() -> {
+            if (accessToken == null || accessToken.isBlank()) {
+                return Mono.error(new IllegalArgumentException("GitHub access token must not be blank"));
+            }
+            if (organization == null || organization.isBlank()) {
+                return Mono.error(new IllegalArgumentException("organization must not be blank"));
+            }
 
-        GitHubOrganizationResponse[] response = executeGet(uri, GitHubOrganizationResponse[].class, accessToken,
-                "Failed to fetch GitHub organizations");
+            URI uri = UriComponentsBuilder.fromUri(apiProperties.baseUrl())
+                    .pathSegment("orgs", organization)
+                    .build()
+                    .toUri();
 
-        if (response == null) {
-            return List.of();
-        }
-
-        return Arrays.stream(response)
-                .filter(Objects::nonNull)
-                .map(GitHubOrganizationService::toOrganization)
-                .toList();
+            return executeGetReactive(uri, GitHubOrganizationResponse.class, accessToken,
+                    "Failed to fetch GitHub organization")
+                    .map(response -> response == null
+                            ? java.util.Optional.<GitHubOrganization>empty()
+                            : java.util.Optional.ofNullable(toOrganization(response)))
+                    .defaultIfEmpty(java.util.Optional.empty());
+        });
     }
 
     public java.util.Optional<GitHubOrganization> getOrganization(String accessToken, String organization) {
-        if (accessToken == null || accessToken.isBlank()) {
-            throw new IllegalArgumentException("GitHub access token must not be blank");
-        }
-        if (organization == null || organization.isBlank()) {
-            throw new IllegalArgumentException("organization must not be blank");
-        }
+        return getOrganizationReactive(accessToken, organization).blockOptional().orElse(java.util.Optional.empty());
+    }
 
-        URI uri = UriComponentsBuilder.fromUri(apiProperties.baseUrl())
-                .pathSegment("orgs", organization)
-                .build()
-                .toUri();
+    public Mono<List<GitHubRepository>> listRepositoriesReactive(String accessToken, String organization) {
+        return Mono.defer(() -> {
+            if (accessToken == null || accessToken.isBlank()) {
+                return Mono.error(new IllegalArgumentException("GitHub access token must not be blank"));
+            }
+            if (organization == null || organization.isBlank()) {
+                return Mono.error(new IllegalArgumentException("organization must not be blank"));
+            }
 
-        GitHubOrganizationResponse response = executeGet(uri, GitHubOrganizationResponse.class, accessToken,
-                "Failed to fetch GitHub organization");
+            URI uri = UriComponentsBuilder.fromUri(apiProperties.baseUrl())
+                    .pathSegment("orgs", organization, "repos")
+                    .queryParam("per_page", 100)
+                    .queryParam("type", "all")
+                    .queryParam("sort", "updated")
+                    .build()
+                    .toUri();
 
-        if (response == null) {
-            return java.util.Optional.empty();
-        }
-        return java.util.Optional.ofNullable(toOrganization(response));
+            return executeGetReactive(uri, GitHubRepositoryResponse[].class, accessToken,
+                    "Failed to fetch GitHub repositories")
+                    .defaultIfEmpty(new GitHubRepositoryResponse[0])
+                    .map(response -> Arrays.stream(response)
+                            .filter(Objects::nonNull)
+                            .map(GitHubOrganizationService::toRepository)
+                            .toList());
+        });
     }
 
     public List<GitHubRepository> listRepositories(String accessToken, String organization) {
-        if (accessToken == null || accessToken.isBlank()) {
-            throw new IllegalArgumentException("GitHub access token must not be blank");
-        }
-        if (organization == null || organization.isBlank()) {
-            throw new IllegalArgumentException("organization must not be blank");
-        }
+        return listRepositoriesReactive(accessToken, organization).blockOptional().orElse(List.of());
+    }
 
-        URI uri = UriComponentsBuilder.fromUri(apiProperties.baseUrl())
-                                    .pathSegment("orgs", organization, "repos")
-                                    .queryParam("per_page", 100)
-                                    .queryParam("type", "all")
-                                    .queryParam("sort", "updated")
-                                    .build()
-                                    .toUri();
+    public Mono<List<GitHubOrganizationMember>> listMembersReactive(String accessToken, String organization) {
+        return Mono.defer(() -> {
+            if (accessToken == null || accessToken.isBlank()) {
+                return Mono.error(new IllegalArgumentException("GitHub access token must not be blank"));
+            }
+            if (organization == null || organization.isBlank()) {
+                return Mono.error(new IllegalArgumentException("organization must not be blank"));
+            }
 
-        GitHubRepositoryResponse[] response = executeGet(uri, GitHubRepositoryResponse[].class, accessToken,
-                "Failed to fetch GitHub repositories");
+            URI uri = UriComponentsBuilder.fromUri(apiProperties.baseUrl())
+                    .pathSegment("orgs", organization, "members")
+                    .queryParam("per_page", 100)
+                    .queryParam("role", "all")
+                    .build()
+                    .toUri();
 
-        if (response == null) {
-            return List.of();
-        }
-
-        return Arrays.stream(response)
-                .filter(Objects::nonNull)
-                .map(GitHubOrganizationService::toRepository)
-                .toList();
+            return executeGetReactive(uri, GitHubMemberResponse[].class, accessToken,
+                    "Failed to fetch GitHub members")
+                    .defaultIfEmpty(new GitHubMemberResponse[0])
+                    .map(response -> Arrays.stream(response)
+                            .filter(Objects::nonNull)
+                            .map(GitHubOrganizationService::toMember)
+                            .toList());
+        });
     }
 
     public List<GitHubOrganizationMember> listMembers(String accessToken, String organization) {
-        if (accessToken == null || accessToken.isBlank()) {
-            throw new IllegalArgumentException("GitHub access token must not be blank");
-        }
-        if (organization == null || organization.isBlank()) {
-            throw new IllegalArgumentException("organization must not be blank");
-        }
-
-        URI uri = UriComponentsBuilder.fromUri(apiProperties.baseUrl())
-                .pathSegment("orgs", organization, "members")
-                .queryParam("per_page", 100)
-        .queryParam("role", "all")
-                .build()
-                .toUri();
-
-        GitHubMemberResponse[] response = executeGet(uri, GitHubMemberResponse[].class, accessToken,
-                "Failed to fetch GitHub members");
-
-        if (response == null) {
-            return List.of();
-        }
-
-        return Arrays.stream(response)
-                .filter(Objects::nonNull)
-                .map(GitHubOrganizationService::toMember)
-                .toList();
+        return listMembersReactive(accessToken, organization).blockOptional().orElse(List.of());
     }
 
-    private <T> T executeGet(URI uri, Class<T> responseType, String accessToken, String failureMessage) {
-        try {
-            return webClient.get()
-                    .uri(uri)
-                    .header(HttpHeaders.ACCEPT, ACCEPT_HEADER)
-                    .header(HttpHeaders.USER_AGENT, USER_AGENT)
-                    .headers(headers -> headers.setBearerAuth(accessToken))
-                    .retrieve()
-                    .bodyToMono(responseType)
-                    .block();
-        } catch (WebClientResponseException e) {
-            String message = String.format("%s: %s", failureMessage, e.getMessage());
-            throw new GitHubApiException(message, e.getStatusCode(), e);
-        } catch (RuntimeException e) {
-            throw new GitHubApiException(failureMessage, e);
-        }
+    private <T> Mono<T> executeGetReactive(URI uri, Class<T> responseType, String accessToken, String failureMessage) {
+        return Mono.defer(() -> webClient.get()
+                .uri(uri)
+                .header(HttpHeaders.ACCEPT, ACCEPT_HEADER)
+                .header(HttpHeaders.USER_AGENT, USER_AGENT)
+                .headers(headers -> headers.setBearerAuth(accessToken))
+                .retrieve()
+                .bodyToMono(responseType))
+                .onErrorMap(throwable -> {
+                    if (throwable instanceof GitHubApiException) {
+                        return throwable;
+                    }
+                    if (throwable instanceof WebClientResponseException e) {
+                        String message = String.format("%s: %s", failureMessage, e.getMessage());
+                        return new GitHubApiException(message, e.getStatusCode(), e);
+                    }
+                    return new GitHubApiException(failureMessage, throwable);
+                });
     }
 
     private static GitHubOrganization toOrganization(GitHubOrganizationResponse response) {

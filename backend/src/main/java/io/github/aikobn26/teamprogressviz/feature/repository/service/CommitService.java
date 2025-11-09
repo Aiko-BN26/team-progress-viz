@@ -25,6 +25,8 @@ import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
 import io.github.aikobn26.teamprogressviz.shared.exception.ResourceNotFoundException;
 import io.github.aikobn26.teamprogressviz.shared.exception.ValidationException;
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 @RequiredArgsConstructor
@@ -53,6 +55,14 @@ public class CommitService {
                 .toList();
     }
 
+    public Mono<List<CommitListItemResponse>> listCommitsReactive(User user,
+                                  Long repositoryId,
+                                  Integer limit,
+                                  Integer page) {
+    return Mono.fromCallable(() -> listCommits(user, repositoryId, limit, page))
+        .subscribeOn(Schedulers.boundedElastic());
+    }
+
     public CommitDetailResponse getCommit(User user,
                                           Long repositoryId,
                                           String sha) {
@@ -65,6 +75,13 @@ public class CommitService {
                 .findByRepositoryIdAndShaAndDeletedAtIsNull(repository.getId(), sha)
                 .orElseThrow(() -> new ResourceNotFoundException("Commit not found"));
         return toDetail(commit);
+    }
+
+    public Mono<CommitDetailResponse> getCommitReactive(User user,
+                            Long repositoryId,
+                            String sha) {
+    return Mono.fromCallable(() -> getCommit(user, repositoryId, sha))
+        .subscribeOn(Schedulers.boundedElastic());
     }
 
     public List<CommitFileResponse> listFiles(User user,
@@ -84,6 +101,13 @@ public class CommitService {
                 .stream()
                 .map(this::toFileResponse)
                 .toList();
+    }
+
+    public Mono<List<CommitFileResponse>> listFilesReactive(User user,
+                                Long repositoryId,
+                                String sha) {
+    return Mono.fromCallable(() -> listFiles(user, repositoryId, sha))
+        .subscribeOn(Schedulers.boundedElastic());
     }
 
     private Repository requireAccessibleRepository(User user, Long repositoryId) {

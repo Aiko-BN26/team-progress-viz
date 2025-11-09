@@ -5,8 +5,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.OffsetDateTime;
@@ -22,6 +24,9 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.test.web.servlet.ResultActions;
 
 import io.github.aikobn26.teamprogressviz.feature.auth.model.AuthenticatedUser;
 import io.github.aikobn26.teamprogressviz.feature.auth.service.GitHubOAuthService;
@@ -34,6 +39,7 @@ import io.github.aikobn26.teamprogressviz.feature.repository.service.PullRequest
 import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
 import io.github.aikobn26.teamprogressviz.feature.user.service.UserService;
 import io.github.aikobn26.teamprogressviz.support.FrontendPropertiesTestConfig;
+import reactor.core.publisher.Mono;
 
 @WebMvcTest(PullRequestController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -56,8 +62,8 @@ class PullRequestControllerTest {
     void list_returnsUnauthorizedWhenUnauthenticated() throws Exception {
         when(gitHubOAuthService.getAuthenticatedUser(any())).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/repositories/51/pulls"))
-                .andExpect(status().isUnauthorized());
+    performAsync(get("/api/repositories/51/pulls"))
+        .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -69,16 +75,17 @@ class PullRequestControllerTest {
 
         var summary = new PullRequestListItemResponse.UserSummary(20L, 1_000L, "octocat", "https://avatar");
         var item = new PullRequestListItemResponse(70L, 5, "Add feature", "open", summary, OffsetDateTime.parse("2025-01-07T10:00:00Z"), OffsetDateTime.parse("2025-01-07T11:00:00Z"), "org/repo");
-        when(pullRequestService.listPullRequests(same(user), eq(51L), eq("open"), eq(25), eq(1))).thenReturn(List.of(item));
+    when(pullRequestService.listPullRequestsReactive(same(user), eq(51L), eq("open"), eq(25), eq(1)))
+        .thenReturn(Mono.just(List.of(item)));
 
-        mockMvc.perform(get("/api/repositories/51/pulls")
-                        .param("state", "open")
-                        .param("limit", "25")
-                        .param("page", "1"))
+    performAsync(get("/api/repositories/51/pulls")
+            .param("state", "open")
+            .param("limit", "25")
+            .param("page", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].title").value("Add feature"));
 
-        verify(pullRequestService).listPullRequests(same(user), eq(51L), eq("open"), eq(25), eq(1));
+    verify(pullRequestService).listPullRequestsReactive(same(user), eq(51L), eq("open"), eq(25), eq(1));
     }
 
     @Test
@@ -90,13 +97,13 @@ class PullRequestControllerTest {
 
         var author = new PullRequestDetailResponse.UserSummary(20L, 1_000L, "octocat", "https://avatar");
         var detail = new PullRequestDetailResponse(70L, 5, "Add feature", "body", "open", false, "https://github.com/org/repo/pull/5", author, null, 10, 2, 3, OffsetDateTime.parse("2025-01-07T10:00:00Z"), OffsetDateTime.parse("2025-01-07T11:00:00Z"), null, null, "org/repo");
-        when(pullRequestService.getPullRequest(same(user), eq(51L), eq(5))).thenReturn(detail);
+    when(pullRequestService.getPullRequestReactive(same(user), eq(51L), eq(5))).thenReturn(Mono.just(detail));
 
-        mockMvc.perform(get("/api/repositories/51/pulls/5"))
+    performAsync(get("/api/repositories/51/pulls/5"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.htmlUrl").value("https://github.com/org/repo/pull/5"));
 
-        verify(pullRequestService).getPullRequest(same(user), eq(51L), eq(5));
+    verify(pullRequestService).getPullRequestReactive(same(user), eq(51L), eq(5));
     }
 
     @Test
@@ -107,13 +114,13 @@ class PullRequestControllerTest {
         when(userService.ensureUserExists(authUser)).thenReturn(user);
 
         var file = new PullRequestFileResponse(1L, "src/App.java", "java", 10, 2, 12, "https://raw");
-        when(pullRequestService.listFiles(same(user), eq(51L), eq(5))).thenReturn(List.of(file));
+    when(pullRequestService.listFilesReactive(same(user), eq(51L), eq(5))).thenReturn(Mono.just(List.of(file)));
 
-        mockMvc.perform(get("/api/repositories/51/pulls/5/files"))
+    performAsync(get("/api/repositories/51/pulls/5/files"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].path").value("src/App.java"));
 
-        verify(pullRequestService).listFiles(same(user), eq(51L), eq(5));
+    verify(pullRequestService).listFilesReactive(same(user), eq(51L), eq(5));
     }
 
     @Test
@@ -126,16 +133,23 @@ class PullRequestControllerTest {
         var feedUser = new PullRequestFeedResponse.PullRequestUser(20L, 1_000L, "octocat", "https://avatar");
         var item = new PullRequestFeedResponse.Item(77L, 5, "Add feature", "org/repo", "open", feedUser, OffsetDateTime.parse("2025-01-07T10:00:00Z"), OffsetDateTime.parse("2025-01-07T11:00:00Z"), "https://github.com/org/repo/pull/5");
         var feed = new PullRequestFeedResponse(List.of(item), "77");
-        when(pullRequestService.fetchFeed(same(user), eq(99L), eq(20L), eq(30))).thenReturn(feed);
+    when(pullRequestService.fetchFeedReactive(same(user), eq(99L), eq(20L), eq(30))).thenReturn(Mono.just(feed));
 
-        mockMvc.perform(get("/api/organizations/99/pulls/feed")
-                        .param("cursor", "20")
-                        .param("limit", "30"))
+    performAsync(get("/api/organizations/99/pulls/feed")
+            .param("cursor", "20")
+            .param("limit", "30"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].title").value("Add feature"))
                 .andExpect(jsonPath("$.nextCursor").value("77"));
 
-        verify(pullRequestService).fetchFeed(same(user), eq(99L), eq(20L), eq(30));
+    verify(pullRequestService).fetchFeedReactive(same(user), eq(99L), eq(20L), eq(30));
+    }
+
+    private ResultActions performAsync(RequestBuilder requestBuilder) throws Exception {
+    MvcResult result = mockMvc.perform(requestBuilder)
+        .andExpect(request().asyncStarted())
+        .andReturn();
+    return mockMvc.perform(asyncDispatch(result));
     }
 
     @TestConfiguration

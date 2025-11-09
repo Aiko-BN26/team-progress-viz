@@ -5,8 +5,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.OffsetDateTime;
@@ -22,6 +24,9 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.test.web.servlet.ResultActions;
 
 import io.github.aikobn26.teamprogressviz.feature.auth.model.AuthenticatedUser;
 import io.github.aikobn26.teamprogressviz.feature.auth.service.GitHubOAuthService;
@@ -33,6 +38,7 @@ import io.github.aikobn26.teamprogressviz.feature.repository.service.CommitServi
 import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
 import io.github.aikobn26.teamprogressviz.feature.user.service.UserService;
 import io.github.aikobn26.teamprogressviz.support.FrontendPropertiesTestConfig;
+import reactor.core.publisher.Mono;
 
 @WebMvcTest(CommitController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -55,8 +61,8 @@ class CommitControllerTest {
     void list_returnsUnauthorizedWhenUnauthenticated() throws Exception {
         when(gitHubOAuthService.getAuthenticatedUser(any())).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/repositories/44/commits"))
-                .andExpect(status().isUnauthorized());
+    performAsync(get("/api/repositories/44/commits"))
+        .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -67,15 +73,15 @@ class CommitControllerTest {
         when(userService.ensureUserExists(authUser)).thenReturn(user);
 
         var item = new CommitListItemResponse(11L, "abc123", "Add feature", "org/repo", "octocat", "octocat", OffsetDateTime.parse("2025-01-07T12:00:00Z"), "https://github.com/org/repo/commit/abc123");
-        when(commitService.listCommits(same(user), eq(44L), eq(10), eq(2))).thenReturn(List.of(item));
+    when(commitService.listCommitsReactive(same(user), eq(44L), eq(10), eq(2))).thenReturn(Mono.just(List.of(item)));
 
-        mockMvc.perform(get("/api/repositories/44/commits")
-                        .param("limit", "10")
-                        .param("page", "2"))
+    performAsync(get("/api/repositories/44/commits")
+            .param("limit", "10")
+            .param("page", "2"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].sha").value("abc123"));
 
-        verify(commitService).listCommits(same(user), eq(44L), eq(10), eq(2));
+    verify(commitService).listCommitsReactive(same(user), eq(44L), eq(10), eq(2));
     }
 
     @Test
@@ -86,13 +92,13 @@ class CommitControllerTest {
         when(userService.ensureUserExists(authUser)).thenReturn(user);
 
         var detail = new CommitDetailResponse(11L, "abc123", 44L, "org/repo", "Add feature", "https://github.com/org/repo/commit/abc123", "octocat", "octocat@example.com", "octocat", "octocat@example.com", OffsetDateTime.parse("2025-01-07T12:00:00Z"), OffsetDateTime.parse("2025-01-07T13:00:00Z"));
-        when(commitService.getCommit(same(user), eq(44L), eq("abc123"))).thenReturn(detail);
+    when(commitService.getCommitReactive(same(user), eq(44L), eq("abc123"))).thenReturn(Mono.just(detail));
 
-        mockMvc.perform(get("/api/repositories/44/commits/abc123"))
+    performAsync(get("/api/repositories/44/commits/abc123"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Add feature"));
 
-        verify(commitService).getCommit(same(user), eq(44L), eq("abc123"));
+    verify(commitService).getCommitReactive(same(user), eq(44L), eq("abc123"));
     }
 
     @Test
@@ -103,13 +109,20 @@ class CommitControllerTest {
         when(userService.ensureUserExists(authUser)).thenReturn(user);
 
         var file = new CommitFileResponse(1L, "src/App.java", "App.java", "java", "modified", 10, 2, 12, "https://raw");
-        when(commitService.listFiles(same(user), eq(44L), eq("abc123"))).thenReturn(List.of(file));
+    when(commitService.listFilesReactive(same(user), eq(44L), eq("abc123"))).thenReturn(Mono.just(List.of(file)));
 
-        mockMvc.perform(get("/api/repositories/44/commits/abc123/files"))
+    performAsync(get("/api/repositories/44/commits/abc123/files"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].path").value("src/App.java"));
 
-        verify(commitService).listFiles(same(user), eq(44L), eq("abc123"));
+    verify(commitService).listFilesReactive(same(user), eq(44L), eq("abc123"));
+    }
+
+    private ResultActions performAsync(RequestBuilder requestBuilder) throws Exception {
+    MvcResult result = mockMvc.perform(requestBuilder)
+        .andExpect(request().asyncStarted())
+        .andReturn();
+    return mockMvc.perform(asyncDispatch(result));
     }
 
     @TestConfiguration

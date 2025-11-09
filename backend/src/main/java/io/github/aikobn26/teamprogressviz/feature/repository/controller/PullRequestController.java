@@ -17,10 +17,13 @@ import io.github.aikobn26.teamprogressviz.feature.repository.dto.response.PullRe
 import io.github.aikobn26.teamprogressviz.feature.repository.dto.response.PullRequestFileResponse;
 import io.github.aikobn26.teamprogressviz.feature.repository.dto.response.PullRequestListItemResponse;
 import io.github.aikobn26.teamprogressviz.feature.repository.service.PullRequestService;
+import io.github.aikobn26.teamprogressviz.feature.user.entity.User;
 import io.github.aikobn26.teamprogressviz.feature.user.service.UserService;
 import io.github.aikobn26.teamprogressviz.shared.exception.ValidationException;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @RestController
 @RequestMapping("/api")
@@ -33,65 +36,67 @@ public class PullRequestController {
     private final PullRequestService pullRequestService;
 
     @GetMapping("/repositories/{repositoryId}/pulls")
-    public ResponseEntity<List<PullRequestListItemResponse>> list(@PathVariable Long repositoryId,
-                                                                  @RequestParam(required = false) String state,
-                                                                  @RequestParam(required = false) Integer limit,
-                                                                  @RequestParam(required = false) Integer page,
-                                                                  HttpSession session) {
-        var authenticated = gitHubOAuthService.getAuthenticatedUser(session);
-        if (authenticated.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        var user = userService.ensureUserExists(authenticated.get());
-        var response = pullRequestService.listPullRequests(user, repositoryId, state, limit, page);
-        return ResponseEntity.ok(response);
+    public Mono<ResponseEntity<List<PullRequestListItemResponse>>> list(@PathVariable Long repositoryId,
+                                                                        @RequestParam(required = false) String state,
+                                                                        @RequestParam(required = false) Integer limit,
+                                                                        @RequestParam(required = false) Integer page,
+                                                                        HttpSession session) {
+        return resolveUser(session)
+                .flatMap(user -> pullRequestService.listPullRequestsReactive(user, repositoryId, state, limit, page)
+                        .map(ResponseEntity::ok))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()));
     }
 
     @GetMapping("/repositories/{repositoryId}/pulls/{pullNumber}")
-    public ResponseEntity<PullRequestDetailResponse> detail(@PathVariable Long repositoryId,
-                                                            @PathVariable Integer pullNumber,
-                                                            HttpSession session) {
-        var authenticated = gitHubOAuthService.getAuthenticatedUser(session);
-        if (authenticated.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        var user = userService.ensureUserExists(authenticated.get());
-        var response = pullRequestService.getPullRequest(user, repositoryId, pullNumber);
-        return ResponseEntity.ok(response);
+    public Mono<ResponseEntity<PullRequestDetailResponse>> detail(@PathVariable Long repositoryId,
+                                                                  @PathVariable Integer pullNumber,
+                                                                  HttpSession session) {
+        return resolveUser(session)
+                .flatMap(user -> pullRequestService.getPullRequestReactive(user, repositoryId, pullNumber)
+                        .map(ResponseEntity::ok))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()));
     }
 
     @GetMapping("/repositories/{repositoryId}/pulls/{pullNumber}/files")
-    public ResponseEntity<List<PullRequestFileResponse>> files(@PathVariable Long repositoryId,
-                                                               @PathVariable Integer pullNumber,
-                                                               HttpSession session) {
-        var authenticated = gitHubOAuthService.getAuthenticatedUser(session);
-        if (authenticated.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        var user = userService.ensureUserExists(authenticated.get());
-        var response = pullRequestService.listFiles(user, repositoryId, pullNumber);
-        return ResponseEntity.ok(response);
+    public Mono<ResponseEntity<List<PullRequestFileResponse>>> files(@PathVariable Long repositoryId,
+                                                                     @PathVariable Integer pullNumber,
+                                                                     HttpSession session) {
+        return resolveUser(session)
+                .flatMap(user -> pullRequestService.listFilesReactive(user, repositoryId, pullNumber)
+                        .map(ResponseEntity::ok))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()));
     }
 
     @GetMapping("/organizations/{organizationId}/pulls/feed")
-    public ResponseEntity<PullRequestFeedResponse> organizationFeed(@PathVariable Long organizationId,
-                                                                    @RequestParam(required = false) String cursor,
-                                                                    @RequestParam(required = false) Integer limit,
-                                                                    HttpSession session) {
-        var authenticated = gitHubOAuthService.getAuthenticatedUser(session);
-        if (authenticated.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        var user = userService.ensureUserExists(authenticated.get());
-        Long cursorId = null;
-        if (cursor != null && !cursor.isBlank()) {
-            try {
-                cursorId = Long.parseLong(cursor);
-            } catch (NumberFormatException e) {
-                throw new ValidationException("cursor must be a numeric value");
+    public Mono<ResponseEntity<PullRequestFeedResponse>> organizationFeed(@PathVariable Long organizationId,
+                                                                          @RequestParam(required = false) String cursor,
+                                                                          @RequestParam(required = false) Integer limit,
+                                                                          HttpSession session) {
+        return resolveUser(session)
+                .flatMap(user -> pullRequestService.fetchFeedReactive(user, organizationId, parseCursor(cursor), limit)
+                        .map(ResponseEntity::ok))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()));
+    }
+
+    private Mono<User> resolveUser(HttpSession session) {
+        return Mono.defer(() -> {
+            var authenticated = gitHubOAuthService.getAuthenticatedUser(session);
+            if (authenticated.isEmpty()) {
+                return Mono.empty();
             }
+            return Mono.fromCallable(() -> userService.ensureUserExists(authenticated.get()))
+                    .subscribeOn(Schedulers.boundedElastic());
+        });
+    }
+
+    private Long parseCursor(String cursor) {
+        if (cursor == null || cursor.isBlank()) {
+            return null;
         }
-        var response = pullRequestService.fetchFeed(user, organizationId, cursorId, limit);
-        return ResponseEntity.ok(response);
+        try {
+            return Long.parseLong(cursor);
+        } catch (NumberFormatException e) {
+            throw new ValidationException("cursor must be a numeric value");
+        }
     }
 }
