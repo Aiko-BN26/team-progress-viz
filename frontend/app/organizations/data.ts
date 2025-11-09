@@ -1,5 +1,4 @@
 import { backendFetchJson } from "@/lib/server-api";
-import { mockOrganizations } from "./mock-data";
 import type { OrganizationListItem } from "./types";
 
 type ApiOrganizationSummary = {
@@ -51,8 +50,6 @@ export async function loadOrganizations(): Promise<OrganizationListItem[]> {
       return [];
     }
 
-    const fallbackMap = buildFallbackMap();
-
     const enriched = await Promise.all(
       summaries.map(async (summary) => {
         const [detailResult, statusResult] = await Promise.allSettled([
@@ -74,53 +71,35 @@ export async function loadOrganizations(): Promise<OrganizationListItem[]> {
           console.error("Failed to load organization statuses", summary.id, statusResult.reason);
         }
 
-        const fallback = getFallback(summary, fallbackMap);
-        return mapToListItem(summary, detailData, statusData, fallback);
+        return mapToListItem(summary, detailData, statusData);
       }),
     );
 
     return enriched.filter((item): item is OrganizationListItem => Boolean(item));
   } catch (error) {
-    console.error("[organizations] loadOrganizations failed, falling back to mock", error);
-    return mockOrganizations;
+    console.error("[organizations] loadOrganizations failed", error);
+    return [];
   }
-}
-
-function buildFallbackMap() {
-  const map = new Map<string, OrganizationListItem>();
-  mockOrganizations.forEach((org) => {
-    map.set(org.id, org);
-    map.set(org.name, org);
-  });
-  return map;
-}
-
-function getFallback(summary: ApiOrganizationSummary, map: Map<string, OrganizationListItem>) {
-  if (!summary) return undefined;
-  return map.get(summary.login) ?? map.get(summary.name ?? "") ?? undefined;
 }
 
 function mapToListItem(
   summary: ApiOrganizationSummary,
   detail: ApiOrganizationDetailResponse | null,
   statuses: StatusListItemResponse[],
-  fallback?: OrganizationListItem,
 ): OrganizationListItem {
   const organization = detail?.organization;
-  const id = organization?.id?.toString() ?? summary.id?.toString() ?? fallback?.id ?? summary.login;
-  const name =
-    organization?.name ?? summary.name ?? summary.login ?? fallback?.name ?? "Organization";
-  const description =
-    organization?.description ?? summary.description ?? fallback?.description ?? "";
-  const avatarUrl = organization?.avatarUrl ?? summary.avatarUrl ?? fallback?.avatarUrl ?? "";
+  const id =
+    organization?.id?.toString() ?? summary.id?.toString() ?? summary.login ?? "0";
+  const name = organization?.name ?? summary.name ?? summary.login ?? "Organization";
+  const description = organization?.description ?? summary.description ?? "";
+  const avatarUrl = organization?.avatarUrl ?? summary.avatarUrl ?? "";
 
-  const memberCount = detail?.members?.length ?? fallback?.memberCount ?? 0;
+  const memberCount = detail?.members?.length ?? 0;
   const activeToday = statuses.length;
   const pendingStatusCount = memberCount > 0 ? Math.max(memberCount - activeToday, 0) : 0;
 
   const lastActivity =
     extractLatestTimestampFromData(statuses, detail?.recentCommits) ??
-    fallback?.lastActivity ??
     new Date().toISOString();
 
   return {
