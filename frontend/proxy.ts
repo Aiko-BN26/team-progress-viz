@@ -7,7 +7,7 @@ if (!baseUrl) {
 }
 
 const PROTECTED_PREFIXES = ["/organizations", "/enroll-organizations"];
-const PUBLIC_PATH_PREFIXES = ["/login", "/api", "/_next", "/static"];
+const PUBLIC_PATH_PREFIXES = ["/", "/login", "/api", "/_next", "/static"];
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -45,9 +45,6 @@ export default async function proxy(request: NextRequest) {
 }
 
 function isProtectedPath(pathname: string) {
-  if (pathname === "/") {
-    return true;
-  }
   if (
     PUBLIC_PATH_PREFIXES.some((prefix) =>
       pathname === prefix || pathname.startsWith(`${prefix}/`),
