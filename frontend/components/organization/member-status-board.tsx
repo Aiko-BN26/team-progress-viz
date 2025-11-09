@@ -17,6 +17,7 @@ type Props = {
 
 const FILTERS = [
   { id: "all", label: "全員" },
+  { id: "pending", label: "未提出" },
   { id: "完了", label: "完了" },
   { id: "集中", label: "集中" },
   { id: "休み", label: "休み" },
@@ -43,6 +44,8 @@ export function MemberStatusBoard({ members, timezone }: Props) {
       const matchFilter =
         filter === "all"
           ? true
+          : filter === "pending"
+          ? member.pending
           : member.pending
           ? false
           : member.status === filter;
@@ -75,7 +78,7 @@ export function MemberStatusBoard({ members, timezone }: Props) {
               type="button"
               size="sm"
               variant={filter === option.id ? "default" : "outline"}
-              className="gap-1 px-3"
+              className="gap-1 px-2"
               onClick={() => setFilter(option.id)}
             >
               <Filter className="h-3.5 w-3.5" />
