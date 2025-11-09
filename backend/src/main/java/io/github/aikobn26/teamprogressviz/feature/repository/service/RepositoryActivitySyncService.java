@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
@@ -69,11 +70,22 @@ public class RepositoryActivitySyncService {
     private final OrganizationSyncProperties organizationSyncProperties;
     private final PlatformTransactionManager transactionManager;
 
+    private static final IntConsumer NO_OP_PROGRESS = progress -> { };
+
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void synchronizeActivities(Organization organization, String accessToken) {
+        synchronizeActivities(organization, accessToken, NO_OP_PROGRESS);
+    }
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public void synchronizeActivities(Organization organization, String accessToken, IntConsumer progressConsumer) {
         if (organization == null || organization.getId() == null) {
+            if (progressConsumer != null) {
+                progressConsumer.accept(100);
+            }
             return;
         }
+        IntConsumer progress = progressConsumer != null ? progressConsumer : NO_OP_PROGRESS;
 
         List<RepositorySyncTarget> targets = executeInTransaction(() -> repositoryRepository
                 .findByOrganizationIdAndDeletedAtIsNull(organization.getId())
@@ -82,8 +94,18 @@ public class RepositoryActivitySyncService {
                 .filter(Objects::nonNull)
                 .toList());
 
+        if (targets.isEmpty()) {
+            progress.accept(100);
+            return;
+        }
+
+        int total = targets.size();
+        int processed = 0;
         for (RepositorySyncTarget target : targets) {
             synchronizeRepositoryInternal(target, accessToken);
+            processed++;
+            int percent = (int) Math.round((processed * 100.0) / total);
+            progress.accept(Math.min(100, Math.max(0, percent)));
         }
     }
 
