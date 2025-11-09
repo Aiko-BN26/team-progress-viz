@@ -147,12 +147,12 @@ export function MemberStatusBoard({ members, timezone }: Props) {
                     </p>
                     <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                       <div className="flex flex-col gap-0 leading-tight">
-                        <div className="grid w-48 grid-cols-3 gap-x-4 text-sm">
+                        <div className="grid w-48 grid-cols-3 gap-x-4 text-sm justify-items-center">
                           <span>コミット</span>
                           <span>稼働</span>
                           <span>連続</span>
                         </div>
-                        <div className="grid w-48 grid-cols-3 gap-x-4 text-base font-semibold text-foreground">
+                        <div className="grid w-48 grid-cols-3 gap-x-4 text-base font-semibold text-foreground justify-items-center">
                           <span>{member.commitCount}</span>
                           <span>{member.capacityHours ?? "--"}h</span>
                           <span>{member.streakDays}日</span>
