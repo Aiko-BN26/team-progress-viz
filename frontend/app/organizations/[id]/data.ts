@@ -17,6 +17,16 @@ const ACTIVITY_WEEKS_LOOKBACK = 8;
 const COMMIT_FEED_LIMIT = 60;
 
 const EMPTY_ACTIVITY: OrganizationActivity = { daily: [], weekly: [] };
+const DEFAULT_MEMBER_STATUS: MemberStatus["status"] = "集中";
+
+type ApiOrganizationMember = {
+  userId: number | null;
+  githubId?: number | null;
+  login?: string | null;
+  name?: string | null;
+  avatarUrl?: string | null;
+  role?: string | null;
+};
 
 type ApiOrganizationDetailResponse = {
   organization?: {
@@ -28,9 +38,7 @@ type ApiOrganizationDetailResponse = {
     htmlUrl?: string | null;
     defaultLinkUrl?: string | null;
   };
-  members?: Array<{
-    userId: number | null;
-  }>;
+  members?: ApiOrganizationMember[];
   recentCommits?: Array<{
     id?: number | null;
     sha?: string | null;
@@ -187,17 +195,35 @@ export async function loadOrganizationViewData(
         : normalizeDashboardStatuses(dashboardData?.statuses ?? []);
 
     const activitySummaryMap = buildActivitySummaryMap(activitySummaryItems);
-    const members = normalizedStatuses
-      .map((status) => toMemberStatus(status, activitySummaryMap))
-      .sort(sortByLastSubmittedDesc);
+    const submittedMembers = normalizedStatuses.map((status) =>
+      toMemberStatus(status, activitySummaryMap),
+    );
+
+    const organizationMembers = detailResult.data.members ?? [];
+    const submittedMemberIds = new Set(submittedMembers.map((member) => member.memberId));
+    const pendingMembers = organizationMembers
+      .map((member) => {
+        const pendingStatus = createPendingMemberStatus(member);
+        if (!pendingStatus) {
+          return null;
+        }
+        if (submittedMemberIds.has(pendingStatus.memberId)) {
+          return null;
+        }
+        return pendingStatus;
+      })
+      .filter((member): member is MemberStatus => Boolean(member));
+
+    const members = [...submittedMembers, ...pendingMembers].sort(sortByLastSubmittedDesc);
 
     const currentUserId =
       userResult.status === "fulfilled" && userResult.value.data
         ? userResult.value.data.id
         : null;
 
-    const memberCount = detailResult.data.members?.length ?? members.length;
-    const activeToday = members.length;
+    const memberCountFromDetail = organizationMembers.length;
+    const memberCount = Math.max(memberCountFromDetail, submittedMembers.length);
+    const activeToday = submittedMembers.length;
     const pendingStatusCount = Math.max(memberCount - activeToday, 0);
 
     const commits = buildCommitList(dashboardData, commitFeedItems);
@@ -265,7 +291,6 @@ function toMemberStatus(
   item: NormalizedStatusItem,
   activitySummaryMap: Map<number, ApiActivitySummaryItemResponse>,
 ): MemberStatus {
-  const defaultStatus: MemberStatus["status"] = "集中";
   const memberIdentifier = item.userId ?? item.statusId;
   const summary = item.userId != null ? activitySummaryMap.get(item.userId) : undefined;
   const commitCount = summary?.commitCount ?? 0;
@@ -275,13 +300,32 @@ function toMemberStatus(
     memberId: memberIdentifier != null ? memberIdentifier.toString() : randomUUID(),
     displayName: item.name ?? item.login ?? "メンバー",
     avatarUrl: item.avatarUrl ?? DEFAULT_AVATAR,
-    status: (item.status as MemberStatus["status"]) ?? defaultStatus,
+    status: (item.status as MemberStatus["status"]) ?? DEFAULT_MEMBER_STATUS,
     statusMessage: item.statusMessage ?? null,
     lastSubmittedAt: item.updatedAt ?? null,
     commitCount,
     capacityHours: minutesToHours(availableMinutes),
     streakDays: 0,
     latestPrUrl: null,
+  };
+}
+
+function createPendingMemberStatus(member: ApiOrganizationMember): MemberStatus | null {
+  if (member.userId == null) {
+    return null;
+  }
+  return {
+    memberId: member.userId.toString(),
+    displayName: member.name ?? member.login ?? "メンバー",
+    avatarUrl: member.avatarUrl ?? DEFAULT_AVATAR,
+    status: DEFAULT_MEMBER_STATUS,
+    statusMessage: null,
+    lastSubmittedAt: null,
+    commitCount: 0,
+    capacityHours: null,
+    streakDays: 0,
+    latestPrUrl: null,
+    pending: true,
   };
 }
 
@@ -313,7 +357,7 @@ function derivePersonalStatus(members: MemberStatus[], currentUserId: number | n
   }
 
   const match = members.find((member) => member.memberId === currentUserId.toString());
-  if (!match) {
+  if (!match || match.pending) {
     return fallback;
   }
 
