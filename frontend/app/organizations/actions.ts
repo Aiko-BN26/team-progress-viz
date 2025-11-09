@@ -24,6 +24,7 @@ type JobSyncStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
 type JobStatusResponse = {
   jobId: string;
   status: JobSyncStatus;
+  progress?: number | null;
   errorMessage?: string | null;
 };
 
@@ -47,7 +48,8 @@ async function triggerOrganizationSync(organizationId: number) {
 }
 
 async function waitForJobCompletion(jobId: string) {
-  const deadline = Date.now() + JOB_POLL_TIMEOUT_MS;
+  let deadline = Date.now() + JOB_POLL_TIMEOUT_MS;
+  let lastProgress = -1;
   while (Date.now() < deadline) {
     await delay(JOB_POLL_INTERVAL_MS);
     const statusResult = await backendFetchJson<JobStatusResponse>(`/api/jobs/${jobId}`);
@@ -55,6 +57,15 @@ async function waitForJobCompletion(jobId: string) {
       throw new Error(`ジョブ(${jobId})の状態を取得できませんでした`);
     }
     const status = statusResult.data.status;
+    const progress = statusResult.data.progress ?? null;
+    if (typeof progress === "number" && Number.isFinite(progress)) {
+      if (progress > lastProgress) {
+        lastProgress = progress;
+        if (progress < 100) {
+          deadline = Date.now() + JOB_POLL_TIMEOUT_MS;
+        }
+      }
+    }
     if (status === "SUCCEEDED") {
       return;
     }

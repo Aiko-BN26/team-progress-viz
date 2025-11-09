@@ -95,8 +95,8 @@ public class UserOnboardingService {
             if (target.organizationId() == null) {
                 continue;
             }
-            JobDescriptor job = jobService.submit("job-sync-org",
-                    () -> organizationService.synchronizeOrganization(target.organizationId(), accessToken));
+        JobDescriptor job = jobService.submit("job-sync-org",
+            context -> organizationService.synchronizeOrganization(target.organizationId(), accessToken, context::updateProgress));
             jobs.add(new OnboardingJobResult(target.organizationId(), target.organizationLogin(), job.id()));
         }
 

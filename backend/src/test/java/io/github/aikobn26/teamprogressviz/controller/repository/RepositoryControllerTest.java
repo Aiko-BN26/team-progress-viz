@@ -82,8 +82,8 @@ class RepositoryControllerTest {
         when(userService.ensureUserExists(authUser)).thenReturn(user);
         when(pullRequestService.requireAccessibleRepository(same(user), eq(60L))).thenReturn(repository);
 
-        var jobDescriptor = new JobDescriptor("job-1", "job-sync-prs", JobStatus.RUNNING, OffsetDateTime.now(), OffsetDateTime.now(), null, null);
-        when(jobService.submit(eq("job-sync-prs"), any())).thenReturn(jobDescriptor);
+        var jobDescriptor = new JobDescriptor("job-1", "job-sync-prs", JobStatus.RUNNING, OffsetDateTime.now(), OffsetDateTime.now(), null, 0, null);
+        when(jobService.submit(eq("job-sync-prs"), any(Runnable.class))).thenReturn(jobDescriptor);
 
         mockMvc.perform(post("/api/repositories/60/pulls/sync"))
                 .andExpect(status().isAccepted())
@@ -91,7 +91,7 @@ class RepositoryControllerTest {
                 .andExpect(jsonPath("$.status").value("running"));
 
         verify(pullRequestService).requireAccessibleRepository(same(user), eq(60L));
-        verify(jobService).submit(eq("job-sync-prs"), any());
+        verify(jobService).submit(eq("job-sync-prs"), any(Runnable.class));
     }
 
     @TestConfiguration

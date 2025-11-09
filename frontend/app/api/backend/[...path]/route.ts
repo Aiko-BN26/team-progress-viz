@@ -63,9 +63,6 @@ async function handle(
       : (maybePromise as RouteParams | undefined) ?? {};
   const targetUrl = buildBackendUrl(params.path, request.nextUrl.search);
   const headers = filterRequestHeaders(request.headers);
-  if (request.nextUrl.pathname.includes("/api/auth/session")) {
-    console.log("[backend-proxy] forwarding cookies", headers.get("cookie"));
-  }
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
 

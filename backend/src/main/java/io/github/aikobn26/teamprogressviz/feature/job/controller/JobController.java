@@ -35,7 +35,8 @@ public class JobController {
                         descriptor.status(),
                         descriptor.createdAt(),
                         descriptor.startedAt(),
-                        descriptor.finishedAt(),
+            descriptor.finishedAt(),
+            descriptor.progress(),
                         descriptor.errorMessage()
                 ))
                 .map(ResponseEntity::ok)
