@@ -34,7 +34,7 @@ export type SyncOrganizationActionState = {
 };
 
 const JOB_POLL_INTERVAL_MS = 1000;
-const JOB_POLL_TIMEOUT_MS = 60_000;
+const JOB_POLL_TIMEOUT_MS = 60_000 * 3;
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
