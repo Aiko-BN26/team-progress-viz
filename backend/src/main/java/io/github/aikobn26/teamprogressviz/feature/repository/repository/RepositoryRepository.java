@@ -13,6 +13,8 @@ public interface RepositoryRepository extends JpaRepository<Repository, Long> {
 
     Optional<Repository> findByGithubId(Long githubId);
 
+    Optional<Repository> findByOrganizationIdAndGithubId(Long organizationId, Long githubId);
+
     Optional<Repository> findByIdAndDeletedAtIsNull(Long repositoryId);
 
     List<Repository> findByOrganizationAndDeletedAtIsNull(Organization organization);
