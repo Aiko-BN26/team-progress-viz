@@ -37,7 +37,12 @@ function filterResponseHeaders(original: Headers): Headers {
   const headers = new Headers();
   original.forEach((value, key) => {
     const lowerKey = key.toLowerCase();
-    if (lowerKey === "set-cookie" || hopByHopHeaders.has(lowerKey)) {
+    if (
+      lowerKey === "set-cookie" ||
+      lowerKey === "content-encoding" ||
+      lowerKey === "content-length" ||
+      hopByHopHeaders.has(lowerKey)
+    ) {
       return;
     }
     headers.append(key, value);
