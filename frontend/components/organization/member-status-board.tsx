@@ -5,22 +5,34 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Filter, Search } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { MemberStatus } from "../../app/organizations/[id]/types";
+import type {
+  MemberStatus,
+  MemberStatusState,
+} from "../../app/organizations/[id]/types";
 
 type Props = {
   members: MemberStatus[];
   timezone: string;
 };
 
-const FILTERS = [
-  { id: "all", label: "全員" },
-  { id: "完了", label: "完了" },
-  { id: "集中", label: "集中" },
-  { id: "休み", label: "休み" },
-  { id: "ちょっと", label: "ちょっと" },
+type StatusFilterValue = MemberStatusState | "all" | "pending";
+
+const FILTER_OPTIONS: Array<{ value: StatusFilterValue; label: string }> = [
+  { value: "all", label: "全員" },
+  { value: "完了", label: "完了" },
+  { value: "集中", label: "集中" },
+  { value: "休み", label: "休み" },
+  { value: "ちょっと", label: "ちょっと" },
+  { value: "pending", label: "未提出" },
 ];
 
 const STATUS_STYLES: Record<MemberStatus["status"], string> = {
@@ -31,7 +43,7 @@ const STATUS_STYLES: Record<MemberStatus["status"], string> = {
 };
 
 export function MemberStatusBoard({ members, timezone }: Props) {
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<StatusFilterValue>("all");
   const [query, setQuery] = useState("");
 
   const filteredMembers = useMemo(() => {
@@ -43,9 +55,9 @@ export function MemberStatusBoard({ members, timezone }: Props) {
       const matchFilter =
         filter === "all"
           ? true
-          : member.pending
-          ? false
-          : member.status === filter;
+          : filter === "pending"
+          ? Boolean(member.pending)
+          : !member.pending && member.status === filter;
       return matchQuery && matchFilter;
     });
   }, [filter, members, query]);
@@ -68,20 +80,22 @@ export function MemberStatusBoard({ members, timezone }: Props) {
             状態でフィルタリングして遅れを素早く確認
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {FILTERS.map((option) => (
-            <Button
-              key={option.id}
-              type="button"
-              size="sm"
-              variant={filter === option.id ? "default" : "outline"}
-              className="gap-1 px-3"
-              onClick={() => setFilter(option.id)}
-            >
-              <Filter className="h-3.5 w-3.5" />
-              {option.label}
-            </Button>
-          ))}
+        <div className="md:min-w-32">
+          <Select value={filter} onValueChange={(value) => setFilter(value as StatusFilterValue)}>
+            <SelectTrigger className="w-full">
+              <div className="flex items-center gap-2 text-sm">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <SelectValue placeholder="ステータスで絞り込み" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {FILTER_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
