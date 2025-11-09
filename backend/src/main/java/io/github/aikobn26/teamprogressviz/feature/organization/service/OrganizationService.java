@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -68,6 +69,7 @@ public class OrganizationService {
     private static final int RECENT_COMMIT_LIMIT = 20;
     private static final int RECENT_COMMENT_LIMIT = 20;
     private static final int SUMMARY_WINDOW_DAYS = 7;
+    private static final IntConsumer NO_OP_PROGRESS = progress -> { };
 
     @Transactional(readOnly = true)
     public List<Organization> listOrganizations(User user) {
@@ -175,12 +177,19 @@ public class OrganizationService {
     }
 
     public OrganizationSyncResult synchronizeOrganization(Long organizationId, String accessToken) {
+        return synchronizeOrganization(organizationId, accessToken, NO_OP_PROGRESS);
+    }
+
+    public OrganizationSyncResult synchronizeOrganization(Long organizationId, String accessToken, IntConsumer progressConsumer) {
         if (organizationId == null) {
             throw new ValidationException("organizationId must not be null");
         }
         if (!StringUtils.hasText(accessToken)) {
             throw new ValidationException("GitHub access token is required");
         }
+
+        IntConsumer progress = progressConsumer != null ? progressConsumer : NO_OP_PROGRESS;
+        progress.accept(5);
 
         OrganizationSnapshot organizationSnapshot = executeInTransaction(() -> organizationRepository
                 .findByIdAndDeletedAtIsNull(organizationId)
@@ -194,12 +203,15 @@ public class OrganizationService {
                 .getOrganization(accessToken, organizationLogin)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Organization not found on GitHub: " + organizationLogin));
+        progress.accept(10);
 
         List<GitHubRepository> gitHubRepositories = gitHubOrganizationService
                 .listRepositories(accessToken, organizationLogin);
+        progress.accept(25);
 
         List<GitHubOrganizationMember> gitHubMembers = gitHubOrganizationService
                 .listMembers(accessToken, organizationLogin);
+        progress.accept(35);
 
         OrganizationUpdateResult updateResult = executeInTransaction(() -> {
             Organization managedOrganization = organizationRepository
@@ -214,9 +226,12 @@ public class OrganizationService {
 
             return new OrganizationUpdateResult(savedOrganization, syncedRepositories);
         });
+    progress.accept(45);
 
         // Run activity sync outside the transaction so pooled connections are released before remote calls.
-        repositoryActivitySyncService.synchronizeActivities(updateResult.organization(), accessToken);
+    repositoryActivitySyncService.synchronizeActivities(updateResult.organization(), accessToken,
+        percent -> progress.accept(45 + (percent * 50 / 100)));
+    progress.accept(95);
 
         return new OrganizationSyncResult(
                 updateResult.organization(),

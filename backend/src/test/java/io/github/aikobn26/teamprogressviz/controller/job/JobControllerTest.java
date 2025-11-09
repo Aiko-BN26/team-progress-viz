@@ -73,8 +73,9 @@ class JobControllerTest {
                 JobStatus.RUNNING,
                 OffsetDateTime.now().minusMinutes(5),
                 OffsetDateTime.now().minusMinutes(4),
-                null,
-                null
+        null,
+        50,
+        null
         );
         when(jobService.findJob("job-1")).thenReturn(Optional.of(descriptor));
 
@@ -82,7 +83,8 @@ class JobControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.jobId").value("job-1"))
                 .andExpect(jsonPath("$.type").value("sync"))
-                .andExpect(jsonPath("$.status").value("RUNNING"));
+        .andExpect(jsonPath("$.status").value("RUNNING"))
+        .andExpect(jsonPath("$.progress").value(50));
     }
 
     @TestConfiguration

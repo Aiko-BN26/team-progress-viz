@@ -135,9 +135,10 @@ class OrganizationControllerTest {
         OffsetDateTime.now(),
         null,
         null,
+        0,
         null
     );
-    when(jobService.submit(eq("job-sync-org"), any())).thenReturn(jobDescriptor);
+    when(jobService.submit(eq("job-sync-org"), any(JobService.JobTask.class))).thenReturn(jobDescriptor);
 
         mockMvc.perform(post("/api/organizations")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -168,9 +169,10 @@ class OrganizationControllerTest {
         OffsetDateTime.now(),
         null,
         null,
+        0,
         null
     );
-    when(jobService.submit(eq("job-sync-org"), any())).thenReturn(jobDescriptor);
+    when(jobService.submit(eq("job-sync-org"), any(JobService.JobTask.class))).thenReturn(jobDescriptor);
 
     mockMvc.perform(post("/api/organizations/33/sync"))
         .andExpect(status().isAccepted())
