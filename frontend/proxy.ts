@@ -11,10 +11,7 @@ const PUBLIC_PATH_PREFIXES = ["/login", "/api", "/_next", "/static"];
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  console.log("[proxy] incoming path", pathname);
-
   if (!isProtectedPath(pathname)) {
-    console.log("[proxy] public path, skipping auth check");
     return NextResponse.next();
   }
 
@@ -30,15 +27,11 @@ export default async function proxy(request: NextRequest) {
       cache: "no-store",
     });
 
-    console.log("[proxy] session check", sessionResponse.status);
-
     if (sessionResponse.ok) {
       if (pathname === "/") {
         const organizationsUrl = new URL("/organizations", request.url);
-        console.log("[proxy] authenticated root access, redirecting to /organizations");
         return NextResponse.redirect(organizationsUrl);
       }
-      console.log("[proxy] authenticated access permitted", pathname);
       return NextResponse.next();
     }
   } catch {
