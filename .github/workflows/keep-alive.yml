@@ -2,7 +2,7 @@ name: Keep Render Alive
 
 on:
   schedule:
-    - cron: '*/10 * * * *' # 10分おき
+    - cron: '*/5 * * * *' # 5分おき(遅延する可能性あり)
   workflow_dispatch:
 
 jobs:
