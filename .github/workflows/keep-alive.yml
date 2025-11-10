@@ -1,0 +1,15 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *' # 10分おき
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render site
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" https://team-progress-viz.onrender.com/ || true
+          
