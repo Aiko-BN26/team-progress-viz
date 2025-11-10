@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Toggle } from "@/components/ui/toggle";
 
 import { ActivityChart } from "@/components/organization/activity-chart";
 import { MemberStatusBoard } from "@/components/organization/member-status-board";
@@ -90,7 +91,7 @@ export default async function OrganizationDetailPage({ params }: PageProps) {
 
   return (
     <main className="space-y-8 px-6 py-7">
-      <div>
+      <div className="flex items-center justify-between">
         <Link
           href="/organizations"
           className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium text-muted-foreground transition hover:bg-muted"
@@ -98,6 +99,13 @@ export default async function OrganizationDetailPage({ params }: PageProps) {
           <ArrowLeft className="h-4 w-4" />
           <span>組織一覧へ戻る</span>
         </Link>
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">ダークモードに切り替え</span>
+          <Toggle
+            pressed={false}
+            darkModeToggle={true}
+          />
+        </div>
       </div>
       <section className="flex flex-col gap-4 rounded-2xl border bg-card p-6 shadow-sm md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-4">

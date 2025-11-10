@@ -113,7 +113,7 @@ export function MemberStatusBoard({ members, timezone }: Props) {
                   key={member.memberId}
                   className={cn(
                     "flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center",
-                    member.pending ? "bg-slate-50 border-slate-200 opacity-80" : "",
+                    member.pending ? "bg-slate-500 bg-opacity-10 opacity-70" : "",
                   )}
                 >
                   <div className="flex items-center gap-3">
